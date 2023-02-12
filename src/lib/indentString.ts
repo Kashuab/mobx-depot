@@ -1,3 +1,12 @@
+/*
+  This is not mobx-depot code, aside from the IndentStringOpts type.
+
+  Original repository: https://github.com/sindresorhus/indent-string
+  See license: https://github.com/sindresorhus/indent-string/blob/main/license
+
+  I had to put the code here because for some reason I could not import it.
+*/
+
 type IndentStringOpts = {
   indent?: string;
   includeEmptyLines?: boolean;
