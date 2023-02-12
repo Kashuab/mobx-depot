@@ -1,0 +1,38 @@
+{
+  "name": "mobx-gql-store",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "generate": "ts-node-dev --project tsconfig.node.json src/generate.ts",
+    "cli": "ts-node --project tsconfig.node.json src/cli.ts",
+    "gen": "yarn cli generate http://localhost:3000/graphql"
+  },
+  "dependencies": {
+    "@abraham/reflection": "^0.12.0",
+    "dedent": "^0.7.0",
+    "graphql": "^16.6.0",
+    "graphql-request": "^5.1.0",
+    "indent-string": "^5.0.0",
+    "inversify": "^6.0.1",
+    "mobx": "^6.8.0",
+    "mobx-react-lite": "^3.4.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "yargs": "^17.6.2"
+  },
+  "devDependencies": {
+    "@types/dedent": "^0.7.0",
+    "@types/node": "^18.13.0",
+    "@types/react": "^18.0.27",
+    "@types/react-dom": "^18.0.10",
+    "@types/yargs": "^17.0.22",
+    "@vitejs/plugin-react-swc": "^3.0.0",
+    "ts-node": "^10.9.1",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^4.9.3",
+    "vite": "^4.1.0"
+  }
+}
