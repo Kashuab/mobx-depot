@@ -1,7 +1,7 @@
 {
-  "name": "mobx-gql-store",
-  "private": true,
-  "version": "0.0.0",
+  "name": "mobx-depot",
+  "private": false,
+  "version": "0.1.0",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
