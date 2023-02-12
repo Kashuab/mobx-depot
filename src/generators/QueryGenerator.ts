@@ -22,8 +22,6 @@ export class QueryGenerator {
     const imports: string[] = [];
 
     this.field.args.forEach(field => {
-      if (this.field.name === "battle") console.log(field);
-
       if (field.type.kind === 'INPUT_OBJECT') {
         imports.push(`import { ${field.type.name} } from '../inputs/${field.type.name}';`);
       }

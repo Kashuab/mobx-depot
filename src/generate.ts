@@ -10,7 +10,6 @@ import {
 } from "graphql/utilities";
 import fs from 'fs';
 import {ScalarGenerator} from "./generators/ScalarGenerator";
-import {IntrospectionObjectType} from "graphql/utilities/getIntrospectionQuery";
 import {MutationGenerator} from "./generators/MutationGenerator";
 import {InputObjectInterfaceGenerator} from "./generators/InputObjectInterfaceGenerator";
 import {QueryGenerator} from "./generators/QueryGenerator";
@@ -76,11 +75,11 @@ export function generateScalars(query: IntrospectionQuery) {
 }
 
 export function writeScalarsToDisk(scalars: ScalarGenerator[]) {
-  if (!fs.existsSync('models')) {
-    fs.mkdirSync('models');
+  if (!fs.existsSync('models/depot')) {
+    fs.mkdirSync('models/depot', { recursive: true });
   }
 
-  fs.writeFileSync(`models/scalars.ts`, scalars.map(scalar => scalar.code).join('\n\n'));
+  fs.writeFileSync(`models/depot/scalars.ts`, scalars.map(scalar => scalar.code).join('\n\n'));
 }
 
 type Kind = IntrospectionType['kind'] | 'LIST' | 'NON_NULL';
@@ -115,42 +114,42 @@ export function generateModels(query: IntrospectionQuery) {
 }
 
 export function writeModelsToDisk(models: ModelGenerator[]) {
-  if (!fs.existsSync('models')) {
-    fs.mkdirSync('models');
+  if (!fs.existsSync('models/depot/base')) {
+    fs.mkdirSync('models/depot/base', { recursive: true });
   }
 
   models.forEach(model => {
-    fs.writeFileSync(`models/${model.baseModelFileName}`, model.baseModelCode);
+    fs.writeFileSync(`models/depot/base/${model.baseModelFileName}`, model.baseModelCode);
     fs.writeFileSync(`models/${model.userEditableModelFileName}`, model.userEditableModelCode)
   });
 }
 
 export function writeInputObjectInterfacesToDisk(inputObjectInterfaces: InputObjectInterfaceGenerator[]) {
-  if (!fs.existsSync('models/inputs')) {
-    fs.mkdirSync('models/inputs');
+  if (!fs.existsSync('models/depot/inputs')) {
+    fs.mkdirSync('models/depot/inputs', { recursive: true });
   }
 
   inputObjectInterfaces.forEach(inputObjectInterface => {
-    fs.writeFileSync(`models/inputs/${inputObjectInterface.fileName}`, inputObjectInterface.code);
+    fs.writeFileSync(`models/depot/inputs/${inputObjectInterface.fileName}`, inputObjectInterface.code);
   });
 }
 
 export function writeMutationsToDisk(mutations: MutationGenerator[]) {
-  if (!fs.existsSync('models/mutations')) {
-    fs.mkdirSync('models/mutations');
+  if (!fs.existsSync('models/depot/mutations')) {
+    fs.mkdirSync('models/depot/mutations', { recursive: true });
   }
 
   mutations.forEach(mutation => {
-    fs.writeFileSync(`models/mutations/${mutation.fileName}`, mutation.code);
+    fs.writeFileSync(`models/depot/mutations/${mutation.fileName}`, mutation.code);
   });
 }
 
 export function writeQueriesToDisk(queries: QueryGenerator[]) {
-  if (!fs.existsSync('models/queries')) {
-    fs.mkdirSync('models/queries');
+  if (!fs.existsSync('models/depot/queries')) {
+    fs.mkdirSync('models/depot/queries', { recursive: true });
   }
 
   queries.forEach(query => {
-    fs.writeFileSync(`models/queries/${query.fileName}`, query.code);
+    fs.writeFileSync(`models/depot/queries/${query.fileName}`, query.code);
   });
 }
