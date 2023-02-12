@@ -1,6 +1,7 @@
 import {isModelType, makeIntrospectionQuery} from "./makeIntrospectionQuery";
 import {getTypeName, ModelGenerator} from "./generators/ModelGenerator";
 import {
+  IntrospectionInputObjectType,
   IntrospectionListTypeRef,
   IntrospectionNonNullTypeRef,
   IntrospectionQuery,
@@ -9,12 +10,43 @@ import {
 } from "graphql/utilities";
 import fs from 'fs';
 import {ScalarGenerator} from "./generators/ScalarGenerator";
+import {IntrospectionObjectType} from "graphql/utilities/getIntrospectionQuery";
+import {MutationGenerator} from "./generators/MutationGenerator";
+import {InputObjectInterfaceGenerator} from "./generators/InputObjectInterfaceGenerator";
 
 export async function generate(url: string) {
   const query = await makeIntrospectionQuery(url);
 
+  fs.writeFileSync('introspection.json', JSON.stringify(query, null, 2));
+
   generateScalars(query);
   generateModels(query);
+  generateInputObjectInterfaces(query);
+  generateMutations(query);
+}
+
+export function generateInputObjectInterfaces(query: IntrospectionQuery) {
+  const inputObjectTypes = query.__schema.types
+    .filter(type => type.kind === 'INPUT_OBJECT') as IntrospectionInputObjectType[];
+
+  const generators = inputObjectTypes.map(type => new InputObjectInterfaceGenerator(type));
+
+  writeInputObjectInterfacesToDisk(generators);
+}
+
+export function generateMutations(query: IntrospectionQuery) {
+  const mutationType = query.__schema.types.find(type => type.name === 'Mutation');
+  if (!mutationType) {
+    throw new Error('Expected mutationType to be defined');
+  }
+
+  if (!('fields' in mutationType)) {
+    throw new Error('Expected mutationType to have fields');
+  }
+
+  const generators = mutationType.fields.map(field => new MutationGenerator(field));
+
+  writeMutationsToDisk(generators);
 }
 
 export function generateScalars(query: IntrospectionQuery) {
@@ -73,5 +105,25 @@ export function writeModelsToDisk(models: ModelGenerator[]) {
   models.forEach(model => {
     fs.writeFileSync(`models/${model.baseModelFileName}`, model.baseModelCode);
     fs.writeFileSync(`models/${model.userEditableModelFileName}`, model.userEditableModelCode)
+  });
+}
+
+export function writeInputObjectInterfacesToDisk(inputObjectInterfaces: InputObjectInterfaceGenerator[]) {
+  if (!fs.existsSync('models/inputs')) {
+    fs.mkdirSync('models/inputs');
+  }
+
+  inputObjectInterfaces.forEach(inputObjectInterface => {
+    fs.writeFileSync(`models/inputs/${inputObjectInterface.fileName}`, inputObjectInterface.code);
+  });
+}
+
+export function writeMutationsToDisk(mutations: MutationGenerator[]) {
+  if (!fs.existsSync('models/mutations')) {
+    fs.mkdirSync('models/mutations');
+  }
+
+  mutations.forEach(mutation => {
+    fs.writeFileSync(`models/mutations/${mutation.fileName}`, mutation.code);
   });
 }

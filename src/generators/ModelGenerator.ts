@@ -12,11 +12,11 @@ export class ModelGenerator {
   }
 
   get baseModelFileName() {
-    return `${this.className(this.modelType.name, true)}.ts`;
+    return `${this.baseModelClassName}.ts`;
   }
 
   get userEditableModelFileName() {
-    return `${this.className(this.modelType.name)}.ts`;
+    return `${this.userEditableModelClassName}.ts`;
   }
 
   get requiredModels() {
@@ -30,11 +30,6 @@ export class ModelGenerator {
         const typeName = getTypeName(field.type);
         if (scalars.includes(typeName)) return scalars;
 
-        if (!typeName) {
-          console.error(field.type);
-          throw new Error(`How is this a scalar?`);
-        }
-
         scalars.push(typeName);
       }
 
@@ -44,8 +39,6 @@ export class ModelGenerator {
 
   get scalarImports() {
     if (this.requiredScalars.length === 0) return '';
-
-    console.log(this.requiredScalars);
 
     return dedent`
       import { ${this.requiredScalars.join(', ')} } from './scalars';
@@ -73,14 +66,22 @@ export class ModelGenerator {
     return `${name}${base ? 'BaseModel' : 'Model'}`;
   }
 
+  get baseModelClassName() {
+    return this.className(this.modelType.name, true);
+  }
+
+  get userEditableModelClassName() {
+    return this.className(this.modelType.name, false);
+  }
+
   get header() {
-    return `export class ${this.className(this.modelType.name, true)} {`;
+    return `export class ${this.baseModelClassName} {`;
   }
 
   get constructorFunction() {
     // TODO: Is this okay?
     return indentString(dedent`
-      constructor(init: Partial<${this.className(this.modelType.name, true)}>) {
+      constructor(init: Partial<${this.baseModelClassName}>) {
         Object.assign(this, init);
       }
     `, 2);
@@ -95,7 +96,13 @@ export class ModelGenerator {
         }
 
         let type = getTypeName(field.type);
-        if (referencesModel(field.type)) type = this.className(type, false);
+        if (referencesModel(field.type)) {
+          const isArray = type.endsWith('[]');
+          const typeNameWithoutArray = getTypeName(field.type, { stripArrayType: true });
+          type = this.className(typeNameWithoutArray, false);
+
+          if (isArray) type += '[]';
+        }
 
         const isNullable = typeIsNullable(field.type);
         if (isNullable) type += ' | null';
@@ -138,15 +145,12 @@ export class ModelGenerator {
   }
 
   get userEditableModelCode() {
-    const baseClassName = this.className(this.modelType.name, true);
-    const userEditableModelClassName = this.className(this.modelType.name, false);
-
     return dedent`
       import { makeAutoObservable } from 'mobx';
-      import { ${baseClassName} } from './${baseClassName}';
+      import { ${this.baseModelClassName} } from './${this.baseModelClassName}';
       
-      export class ${userEditableModelClassName} extends ${baseClassName} {
-        constructor(init: Partial<${this.className(this.modelType.name, true)}>) {
+      export class ${this.userEditableModelClassName} extends ${this.baseModelClassName} {
+        constructor(init: Partial<${this.baseModelClassName}>) {
           super(init);
           
           makeAutoObservable(this);
@@ -168,16 +172,22 @@ type GetTypeNameOpts = {
   stripArrayType?: boolean;
 }
 
-export function getTypeName(type: IntrospectionField['type'], opts: GetTypeNameOpts = { stripArrayType: true }): string {
+interface IType {
+  kind: string;
+  name?: string;
+  ofType?: IType;
+}
+
+export function getTypeName(type: IType, opts: GetTypeNameOpts = { stripArrayType: false }): string {
   let name: string | null = null;
 
   if (type.kind === 'NON_NULL') {
-    if ('name' in type.ofType) {
+    if (type.ofType && 'name' in type.ofType) {
       return getTypeName(type.ofType, opts);
     }
   }
   
-  if (type.kind === 'LIST') {
+  if (type.kind === 'LIST' && type.ofType) {
     return `${getTypeName(type.ofType, opts)}${opts.stripArrayType ? '' : '[]'}`;
   }
 
@@ -191,6 +201,16 @@ export function getTypeName(type: IntrospectionField['type'], opts: GetTypeNameO
   }
 
   return normalizeTypeName(name);
+}
+
+export function getTypeKind(type: IType): string {
+  if (type.kind === 'NON_NULL' || type.kind === 'LIST') {
+    if (type.ofType) {
+      return getTypeKind(type.ofType);
+    }
+  }
+
+  return type.kind;
 }
 
 interface INamedType {
