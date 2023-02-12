@@ -1,6 +1,14 @@
 # `mobx-depot`
 
-Scaffold your GraphQL schema into MobX-powered models, queries and mutations.
+Scaffold MobX-powered models, queries and mutations with your GraphQL schema.
+
+## We're not ready yet.
+
+Until this library is published on NPM, please don't use it.
+
+If you're interested in contributing, hit me up on [Twitter](https://twitter.com/kyle_helium).
+I won't have any formal guidelines for contributing until after the first release, as I want to ensure
+my vision for the library is clear before I start accepting PRs.
 
 ## Why?
 
