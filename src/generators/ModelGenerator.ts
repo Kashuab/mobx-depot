@@ -26,6 +26,7 @@ export class ModelGenerator {
   get requiredScalars() {
     return this.modelType.fields.reduce((scalars, field) => {
       const isCustomScalar = isScalarType(field.type) && !scalarIsPrimitive(field.type);
+
       if (isCustomScalar) {
         const typeName = getTypeName(field.type);
         if (scalars.includes(typeName)) return scalars;

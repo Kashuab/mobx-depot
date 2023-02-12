@@ -93,10 +93,10 @@ export class QueryGenerator {
   get properties() {
     return indentString(
       [
-        `args: ${this.argumentsTypeName};`,
+        this.hasArgs && `args: ${this.argumentsTypeName};`,
         'selection: string;',
         'loading = false;',
-      ].join('\n'),
+      ].filter(Boolean).join('\n'),
       2,
     )
   }

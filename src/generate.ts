@@ -96,7 +96,7 @@ export function isScalarType(type: { kind: Kind, ofType?: { kind: Kind } }): typ
 }
 
 export function scalarIsPrimitive(type: IntrospectionScalarType | IntrospectionNonNullTypeRef<IntrospectionScalarType> | IntrospectionListTypeRef<IntrospectionScalarType>) {
-  let typeName = getTypeName(type);
+  let typeName = getTypeName(type, { normalizeName: true, stripArrayType: true });
 
   if (!typeName) {
     console.error(type);
