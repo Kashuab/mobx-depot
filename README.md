@@ -12,7 +12,7 @@ My inspiration derives from [`mst-gql`](https://github.com/mobxjs/mst-gql). Howe
   - Having to do `someModel.hasLoaded('someField')` is cumbersome and uses no type predicates
 - Not a fan of `mobx-state-tree`, classes are more intuitive to me
 - Hasn't been updated in 7 months
-  - Too lazy to worry about maintaining a fork, so I'm just going to do it myself. Makes sense, right? 
+  - Too lazy to worry about maintaining a fork, so I'm just going to build an entirely new library. Makes sense, right? 
 
 ## What will it do?
 
