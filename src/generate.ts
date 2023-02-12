@@ -13,6 +13,7 @@ import {ScalarGenerator} from "./generators/ScalarGenerator";
 import {IntrospectionObjectType} from "graphql/utilities/getIntrospectionQuery";
 import {MutationGenerator} from "./generators/MutationGenerator";
 import {InputObjectInterfaceGenerator} from "./generators/InputObjectInterfaceGenerator";
+import {QueryGenerator} from "./generators/QueryGenerator";
 
 export async function generate(url: string) {
   const query = await makeIntrospectionQuery(url);
@@ -23,6 +24,22 @@ export async function generate(url: string) {
   generateModels(query);
   generateInputObjectInterfaces(query);
   generateMutations(query);
+  generateQueries(query);
+}
+
+export function generateQueries(query: IntrospectionQuery) {
+  const queryType = query.__schema.types.find(type => type.name === 'Query');
+  if (!queryType) {
+    throw new Error('Expected queryType to be defined');
+  }
+
+  if (!('fields' in queryType)) {
+    throw new Error('Expected queryType to have fields');
+  }
+
+  const generators = queryType.fields.map(field => new QueryGenerator(field));
+
+  writeQueriesToDisk(generators);
 }
 
 export function generateInputObjectInterfaces(query: IntrospectionQuery) {
@@ -125,5 +142,15 @@ export function writeMutationsToDisk(mutations: MutationGenerator[]) {
 
   mutations.forEach(mutation => {
     fs.writeFileSync(`models/mutations/${mutation.fileName}`, mutation.code);
+  });
+}
+
+export function writeQueriesToDisk(queries: QueryGenerator[]) {
+  if (!fs.existsSync('models/queries')) {
+    fs.mkdirSync('models/queries');
+  }
+
+  queries.forEach(query => {
+    fs.writeFileSync(`models/queries/${query.fileName}`, query.code);
   });
 }

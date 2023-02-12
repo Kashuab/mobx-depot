@@ -1,44 +1,15 @@
-import {
-  IntrospectionField,
-  IntrospectionInputTypeRef,
-} from "graphql/utilities/getIntrospectionQuery";
+import {IntrospectionField, IntrospectionInputTypeRef} from "graphql/utilities/getIntrospectionQuery";
 import {pascalCase} from "change-case";
-import {getTypeKind, getTypeName} from "./ModelGenerator";
-import dedent from "dedent";
+import {getTypeName, typeIsNullable} from "./ModelGenerator";
 import {indentString} from "../lib/indentString";
+import dedent from "dedent";
 import {isScalarType, scalarIsPrimitive} from "../generate";
 
-/*
-  "name": "createBattle",
-  "description": null,
-  "type": {
-    "kind": "OBJECT",
-    "name": "CreateBattlePayload",
-    "ofType": null
-  },
-  "isDeprecated": false,
-  "deprecationReason": null,
-  "args": [
-    {
-      "name": "input",
-      "description": "Parameters for CreateBattle",
-      "type": {
-        "kind": "NON_NULL",
-        "name": null,
-        "ofType": {
-          "kind": "INPUT_OBJECT",
-          "name": "CreateBattleInput",
-          "ofType": null
-        }
-      },
-      "defaultValue": null
-    }
-  ]
- */
 
-export class MutationGenerator {
+// TODO: DRY this up. Very similar to MutationGenerator
+export class QueryGenerator {
   field: IntrospectionField;
-
+  
   constructor(field: IntrospectionField) {
     this.field = field;
   }
@@ -47,12 +18,14 @@ export class MutationGenerator {
     return `${this.className}.ts`;
   }
 
-  get mutationVariableImports() {
+  get queryArgumentImports() {
     const imports: string[] = [];
 
     this.field.args.forEach(field => {
-      if (getTypeKind(field.type) === 'INPUT_OBJECT') {
-        imports.push(`import { ${getTypeName(field.type)} } from '../inputs/${getTypeName(field.type)}';`);
+      if (this.field.name === "battle") console.log(field);
+
+      if (field.type.kind === 'INPUT_OBJECT') {
+        imports.push(`import { ${field.type.name} } from '../inputs/${field.type.name}';`);
       }
 
       if (isScalarType(field.type) && !scalarIsPrimitive(field.type)) {
@@ -67,16 +40,31 @@ export class MutationGenerator {
     return [
       "import { makeAutoObservable } from 'mobx';",
       "import { gql, GraphQLClient } from 'graphql-request';",
-      ...this.mutationVariableImports,
+      ...this.queryArgumentImports,
     ].join('\n');
   }
 
   get className() {
-    return `${pascalCase(this.field.name)}Mutation`;
+    return `${pascalCase(this.field.name)}Query`;
   }
 
   get header() {
     return `export class ${this.className} {`;
+  }
+
+  get argDefinitions() {
+    return this.field.args.map(arg => {
+      const optional = typeIsNullable(arg.type);
+      return `${arg.name}${optional ? '?' : ''}: ${getTypeName(arg.type)}`;
+    });
+  }
+
+  get hasArgs() {
+    return this.argDefinitions.length > 0;
+  }
+
+  get constructorAssignments() {
+    return this.field.args.map(arg => `this.${arg.name} = ${arg.name};`);
   }
 
   get argumentsTypeName() {
@@ -89,27 +77,15 @@ export class MutationGenerator {
     return `type ${this.argumentsTypeName} = { ${this.argDefinitions.join(', ')} };`
   }
 
-  get argDefinitions() {
-    return this.field.args.map(arg => `${arg.name}: ${getTypeName(arg.type)}`);
-  }
-
-  get hasArgs() {
-    return this.argDefinitions.length > 0;
-  }
-
-  get constructorAssignments() {
-    return this.field.args.map(arg => `this.${arg.name} = ${arg.name};`);
-  }
-
   get constructorFunction() {
     return indentString(
       [
         `constructor(${this.hasArgs ? `args: ${this.argumentsTypeName}, ` : ''}selection: string) {`,
-        this.hasArgs && indentString('this.args = args;', 2),
+        this.hasArgs && indentString("this.args = args;", 2),
         indentString("this.selection = selection;", 2),
         indentString("makeAutoObservable(this);", 2),
         '}',
-      ].join('\n'),
+      ].filter(Boolean).join('\n'),
       2,
     )
   }
@@ -117,10 +93,10 @@ export class MutationGenerator {
   get properties() {
     return indentString(
       [
-        this.hasArgs && `args: ${this.argumentsTypeName};`,
+        `args: ${this.argumentsTypeName};`,
         'selection: string;',
         'loading = false;',
-      ].filter(Boolean).join('\n'),
+      ].join('\n'),
       2,
     )
   }
@@ -139,7 +115,7 @@ export class MutationGenerator {
   get documentVariableDefinitions() {
     // TODO: Multiple argument mutations
     return this.field.args.reduce((variables, arg) => {
-      let definition = `$${arg.name}: ${getTypeName(arg.type)}`;
+      let definition = `$${arg.name}: ${getTypeName(arg.type, { normalizeName: false })}`;
 
       if (arg.type.kind === 'NON_NULL') {
         definition += '!';
@@ -155,8 +131,8 @@ export class MutationGenerator {
     return indentString(dedent`
       get document() {
         return gql\`
-          mutation ${pascalCase(this.field.name)}(${this.documentVariableDefinitions}) {
-            ${this.field.name}(${this.documentVariables}) {
+          query ${pascalCase(this.field.name)}${this.documentVariableDefinitions ? `(${this.documentVariableDefinitions})` : ''} {
+            ${this.field.name}${this.documentVariables ? `(${this.documentVariables})` : ''} {
               \${this.selection}
             }
           }
@@ -173,9 +149,9 @@ export class MutationGenerator {
     `, 2);
   }
 
-  get mutateMethod() {
+  get queryMethod() {
     return indentString(dedent`
-      async mutate(client: GraphQLClient) {
+      async query(client: GraphQLClient) {
         this.setLoading(true);
         
         const data = await client.request(this.document${this.hasArgs ? ', this.args' : ''});
@@ -199,7 +175,7 @@ export class MutationGenerator {
       this.constructorFunction,
       this.documentGetter,
       this.setLoadingMethod,
-      this.mutateMethod,
+      this.queryMethod,
       this.footer
     ];
 

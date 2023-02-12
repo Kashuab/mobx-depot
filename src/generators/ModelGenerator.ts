@@ -134,7 +134,7 @@ export class ModelGenerator {
 
   get baseModelCode() {
     const segments = [
-      this.imports,,
+      this.imports,
       this.header,
       this.properties,
       this.constructorFunction,
@@ -160,16 +160,17 @@ export class ModelGenerator {
   }
 }
 
-export function typeIsNonNullable(type: IntrospectionField['type']): boolean {
+export function typeIsNonNullable(type: { kind: string }): boolean {
   return type.kind === 'NON_NULL';
 }
 
-export function typeIsNullable(type: IntrospectionField['type']): boolean {
+export function typeIsNullable(type: { kind: string }): boolean {
   return !typeIsNonNullable(type);
 }
 
 type GetTypeNameOpts = {
   stripArrayType?: boolean;
+  normalizeName?: boolean;
 }
 
 interface IType {
@@ -178,7 +179,7 @@ interface IType {
   ofType?: IType;
 }
 
-export function getTypeName(type: IType, opts: GetTypeNameOpts = { stripArrayType: false }): string {
+export function getTypeName(type: IType, opts: GetTypeNameOpts = { stripArrayType: false, normalizeName: true }): string {
   let name: string | null = null;
 
   if (type.kind === 'NON_NULL') {
@@ -200,7 +201,7 @@ export function getTypeName(type: IType, opts: GetTypeNameOpts = { stripArrayTyp
     throw new Error('Unrecognized type');
   }
 
-  return normalizeTypeName(name);
+  return opts.normalizeName ? normalizeTypeName(name) : name;
 }
 
 export function getTypeKind(type: IType): string {
