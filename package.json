@@ -8,7 +8,8 @@
     "preview": "vite preview",
     "generate": "ts-node-dev --project tsconfig.node.json src/generate.ts",
     "cli": "ts-node --project tsconfig.node.json src/cli.ts",
-    "gen": "yarn cli generate http://localhost:3000/graphql"
+    "gen": "yarn cli generate http://localhost:3000/graphql",
+    "qb": "ts-node --project tsconfig.node.json src/QueryBuilder.ts"
   },
   "dependencies": {
     "@abraham/reflection": "^0.12.0",

@@ -3,12 +3,15 @@ import {IntrospectionField, IntrospectionObjectType} from "graphql/utilities/get
 import {indentString} from "../lib/indentString";
 import {referencesModel} from "../makeIntrospectionQuery";
 import {isScalarType, scalarIsPrimitive} from "../generate";
+import {ModelSelectorGenerator} from "./ModelSelectorGenerator";
 
 export class ModelGenerator {
   modelType: IntrospectionObjectType;
+  selectorGenerator: ModelSelectorGenerator;
 
   constructor(modelType: IntrospectionObjectType) {
     this.modelType = modelType;
+    this.selectorGenerator = new ModelSelectorGenerator(this);
   }
 
   get baseModelFileName() {
@@ -64,7 +67,7 @@ export class ModelGenerator {
   }
 
   className(name = this.modelType.name, base = false) {
-    return `${name}${base ? 'BaseModel' : 'Model'}`;
+    return `${name}${base ? 'Properties' : 'Model'}`;
   }
 
   get baseModelClassName() {
@@ -147,10 +150,27 @@ export class ModelGenerator {
       this.header,
       this.properties,
       this.constructorFunction,
-      this.footer
+      this.footer,
+      this.selectorGenerator.code,
     ];
 
     return segments.join('\n');
+  }
+
+  get propertyGetter() {
+    return `
+      get(key: keyof ${this.baseModelClassName}): ${this.baseModelClassName}[typeof key] {
+        return this.properties[key];
+      }
+    `;
+  }
+
+  get propertySetter() {
+    return `
+      set<K extends keyof ${this.baseModelClassName}>(key: K, value: ${this.baseModelClassName}[K]) {
+        this.properties[key] = value;
+      }
+    `;
   }
 
   get userEditableModelCode() {
@@ -158,12 +178,16 @@ export class ModelGenerator {
       import { makeAutoObservable } from 'mobx';
       import { ${this.baseModelClassName} } from './depot/base/${this.baseModelClassName}';
       
-      export class ${this.userEditableModelClassName} extends ${this.baseModelClassName} {
+      export class ${this.userEditableModelClassName} {
+        properties: ${this.baseModelClassName};
+        
         constructor(init: Partial<${this.baseModelClassName}>) {
-          super(init);
+          this.properties = new ${this.baseModelClassName}(init);
           
           makeAutoObservable(this);
         }
+        
+        ${indentString(this.propertyGetter, 2)}${indentString(this.propertySetter, 2)}
       }
     `
   }
