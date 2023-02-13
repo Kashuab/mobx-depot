@@ -63,10 +63,29 @@ export class MutationGenerator {
     return imports;
   }
 
+  get fieldTypeName() {
+    return getTypeName(this.field.type);
+  }
+
+  get payloadModelName() {
+    return `${this.fieldTypeName}Model`;
+  }
+
+  get payloadSelectorName() {
+    return `selectFrom${this.fieldTypeName}Properties`;
+  }
+
+  get payloadSelectorImport() {
+    return `import { ${this.payloadSelectorName} } from '../base/${this.fieldTypeName}Properties';`;
+  }
+
   get imports() {
     return [
       "import { makeAutoObservable } from 'mobx';",
       "import { gql, GraphQLClient } from 'graphql-request';",
+      "import { buildSelection } from 'mobx-depot';",
+      `import { ${this.payloadModelName} } from '../../${this.payloadModelName}';`,
+      this.payloadSelectorImport,
       ...this.mutationVariableImports,
     ].join('\n');
   }
@@ -97,16 +116,12 @@ export class MutationGenerator {
     return this.argDefinitions.length > 0;
   }
 
-  get constructorAssignments() {
-    return this.field.args.map(arg => `this.${arg.name} = ${arg.name};`);
-  }
-
   get constructorFunction() {
     return indentString(
       [
-        `constructor(${this.hasArgs ? `args: ${this.argumentsTypeName}, ` : ''}selection: string) {`,
+        `constructor(${this.hasArgs ? `args: ${this.argumentsTypeName}, ` : ''}select: Parameters<typeof ${this.payloadSelectorName}>[0]) {`,
         this.hasArgs && indentString('this.args = args;', 2),
-        indentString("this.selection = selection;", 2),
+        indentString(`this.selection = buildSelection(${this.payloadSelectorName}(select));`, 2),
         indentString("makeAutoObservable(this);", 2),
         '}',
       ].join('\n'),
@@ -178,7 +193,7 @@ export class MutationGenerator {
       async mutate(client: GraphQLClient) {
         this.setLoading(true);
         
-        const data = await client.request(this.document${this.hasArgs ? ', this.args' : ''});
+        const data = await client.request<${this.payloadModelName}>(this.document${this.hasArgs ? ', this.args' : ''});
         this.setLoading(false);
         
         return data;

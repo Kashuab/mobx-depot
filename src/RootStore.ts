@@ -1,21 +1,32 @@
-export type RootStoreTypes = Record<string, symbol>
+import {UserModel} from "../models/UserModel";
 
-interface IModel<Properties extends { id: string } = { id: string }> {
-  new (initProps: Partial<Properties>): {
-    properties: Properties;
+type KeyOf<T extends object> = Extract<keyof T, string>;
+
+interface IModel {
+  new (initProps: any): {
+    properties: any;
   };
 }
 
-type GQLData = {
-  __typename: string;
+export type GQLData<Typename extends string> = Record<string, Resolvable<Typename> | Resolvable<Typename>[]> & Record<string, unknown>;
+
+type Resolvable<Typename extends string> = {
+  __typename: Typename;
   id: string;
-} & {
-  [key: string]: GQLData | GQLData[] | unknown;
 }
 
-type RootStoreModels = Record<string, IModel>
+type DeepResolved<Models extends RootStoreModels, ModelName extends KeyOf<Models>, Data extends object> = {
+  [key in keyof Data]:
+    Data[key] extends Resolvable<ModelName>
+      ? InstanceType<Models[Data[key]['__typename']]>
+      : Data[key] extends GQLData<ModelName>
+        ? DeepResolved<Models, ModelName, Data[key]>
+        : Data[key]
+}
 
-export class RootStore<Models extends RootStoreModels> {
+export type RootStoreModels = Record<string, IModel>;
+
+export class RootStore<Models extends RootStoreModels, ModelName extends KeyOf<Models>> {
   instances: Record<string, Record<string, InstanceType<IModel>>> = {};
   models: Models;
 
@@ -32,59 +43,55 @@ export class RootStore<Models extends RootStoreModels> {
     return this.instances[Model.name] as Record<string, InstanceType<T>>;
   }
 
-  getModel<Name extends keyof Models>(modelName: Name): Models[Name] {
+  getModel<Name extends KeyOf<Models>>(modelName: Name): Models[Name] {
     const model = this.models[modelName];
     if (!model) throw new Error('Model not found'); // TODO: Better errors
 
     return model;
   }
 
-  resolve<Data extends GQLData, ModelName extends Data['__typename']>(data: Data): InstanceType<Models[ModelName]> {
-    if (!('__typename' in data) || !data.__typename) {
-      throw new Error('Missing __typename selection in data'); // TODO: Better errors
-    }
+  resolvable(data: object): data is Resolvable<ModelName> {
+    if (!('id' in data) || !('__typename' in data)) return false;
+    if (typeof data.__typename !== 'string' || !(data.__typename in this.models)) return false;
+    return typeof data.id === 'string';
+  }
 
-    if (!('id' in data) || !data.id) {
-      throw new Error('Missing id selection in data'); // TODO: Better errors
-    }
-
+  resolve<D extends object>(data: D): D extends Resolvable<ModelName> ? InstanceType<Models[typeof data['__typename']]> : DeepResolved<Models, ModelName, D> {
     const resolvedData = Object.entries(data).reduce((resolved, [key, value]) => {
       if (value && typeof value === 'object') {
-        // TODO: Arrays could contain objects and other types
         if (Array.isArray(value) && typeof value[0] === 'object') {
-          // TODO: Types
-          (resolved as any)[key] = value.map((item) => this.resolve(item));
+          resolved[key] = value.map((item) => {
+            if (this.resolvable(item)) {
+              return this.resolve(item);
+            } else {
+              return item;
+            }
+          });
         } else {
-          if (!('__typename' in value) || !value.__typename || typeof value.__typename !== 'string') {
-            // Could be some custom hash scalar?
-            return resolved;
-          }
-
-          if (!('id' in value) || !value.id || typeof value.id !== 'string') {
-            throw new Error('Missing id selection in data');
-          }
-
-          // TODO: Types
-          // Not sure why TS is so mad, we checked for __typename and id above
-          (resolved as any)[key] = this.resolve(value as GQLData);
+          resolved[key] = this.resolve(value);
         }
       } else {
-        // IModel has Record<string, unknown> in its properties, so this should be fine
-        (resolved as Record<string, unknown>)[key] = value;
+        resolved[key] = value;
       }
 
       return resolved;
-    }, {} as Partial<InstanceType<typeof Model>['properties']>);
+    }, {} as any); // TODO: Types
 
-    const Model = this.getModel(data.__typename);
-    const store = this.getStore(Model);
-    const instance = store[data.id];
+    if (this.resolvable(data)) {
+      const Model = this.getModel(data.__typename);
+      const store = this.getStore(Model);
+      const instance = store[resolvedData.id];
 
-    if (instance) {
-      return this.update(Model, data.id, resolvedData);
+      if (instance) {
+        // TODO: Types
+        return this.update(Model, resolvedData.id, resolvedData) as any;
+      }
+
+      // TODO: Types
+      return this.create(Model, resolvedData) as any;
     }
 
-    return this.create(Model, resolvedData);
+    return resolvedData;
   }
 
   get<T extends Models[string]>(Model: T, id: string): InstanceType<T> | null {

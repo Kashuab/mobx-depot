@@ -13,6 +13,7 @@ import {ScalarGenerator} from "./generators/ScalarGenerator";
 import {MutationGenerator} from "./generators/MutationGenerator";
 import {InputObjectInterfaceGenerator} from "./generators/InputObjectInterfaceGenerator";
 import {QueryGenerator} from "./generators/QueryGenerator";
+import {RootStoreGenerator} from "./generators/RootStoreGenerator";
 
 export async function generate(url: string) {
   const query = await makeIntrospectionQuery(url);
@@ -20,10 +21,27 @@ export async function generate(url: string) {
   fs.writeFileSync('introspection.json', JSON.stringify(query, null, 2));
 
   generateScalars(query);
-  generateModels(query);
+
+  const models = generateModels(query);
+  generateRootStore(models);
+
   generateInputObjectInterfaces(query);
   generateMutations(query);
   generateQueries(query);
+}
+
+export function generateRootStore(models: ModelGenerator[]) {
+  const rootStore = new RootStoreGenerator(models);
+
+  writeRootStoreToDisk(rootStore);
+}
+
+export function writeRootStoreToDisk(rootStore: RootStoreGenerator) {
+  if (!fs.existsSync('models/depot')) {
+    fs.mkdirSync('models/depot', { recursive: true });
+  }
+
+  fs.writeFileSync(`models/depot/${rootStore.fileName}`, rootStore.code);
 }
 
 export function generateQueries(query: IntrospectionQuery) {
@@ -111,6 +129,8 @@ export function generateModels(query: IntrospectionQuery) {
     .map(type => new ModelGenerator(type));
 
   writeModelsToDisk(modelGenerators);
+
+  return modelGenerators;
 }
 
 export function writeModelsToDisk(models: ModelGenerator[]) {
