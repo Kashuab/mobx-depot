@@ -9,7 +9,8 @@
     "generate": "ts-node-dev --project tsconfig.node.json src/generate.ts",
     "cli": "ts-node --project tsconfig.node.json src/cli.ts",
     "gen": "yarn cli generate http://localhost:3000/graphql",
-    "qb": "ts-node --project tsconfig.node.json src/QueryBuilder.ts"
+    "qb": "ts-node --project tsconfig.node.json src/QueryBuilder.ts",
+    "rs": "ts-node --project tsconfig.node.json src/RootStore.ts"
   },
   "dependencies": {
     "@abraham/reflection": "^0.12.0",
