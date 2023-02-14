@@ -3,8 +3,8 @@ import {PostModel} from "./lib/PostModel";
 import {UserModel} from "./lib/UserModel";
 
 const createStore = () => new RootStore({
-  UserModel,
-  PostModel,
+  User: UserModel,
+  Post: PostModel,
 });
 
 describe('RootStore', () => {
@@ -16,7 +16,7 @@ describe('RootStore', () => {
 
   it('can resolve a simple model', () => {
     const resolved = store.resolve({
-      __typename: 'UserModel',
+      __typename: 'User',
       id: '1',
       name: 'John',
     } as const);
@@ -28,17 +28,17 @@ describe('RootStore', () => {
     const resolved = store.resolve({
       createUser: {
         user: {
-          __typename: 'UserModel',
+          __typename: 'User',
           id: '1',
           name: 'John',
           posts: [
             {
-              __typename: 'PostModel',
+              __typename: 'Post',
               id: '1',
               title: 'Hello world',
             },
             {
-              __typename: 'PostModel',
+              __typename: 'Post',
               id: '2',
               title: 'Hello world',
             },
@@ -48,23 +48,24 @@ describe('RootStore', () => {
     } as const);
 
     expect(resolved.createUser.user).toBeInstanceOf(UserModel);
+    expect(resolved.createUser.user.properties.posts[0]).toBeInstanceOf(PostModel);
   });
 
   it('can retain references', () => {
     const user = store.resolve({
-      __typename: 'UserModel',
+      __typename: 'User',
       id: '1',
       name: 'John',
     });
 
     const postOneData = {
-      __typename: 'PostModel',
+      __typename: 'Post',
       id: '1',
       title: 'Hello world',
     } as const;
 
     const postTwoData = {
-      __typename: 'PostModel',
+      __typename: 'Post',
       id: '2',
       title: 'Hello world 2',
     } as const;
@@ -73,7 +74,7 @@ describe('RootStore', () => {
     const secondPost = store.resolve(postTwoData);
 
     const updatedUser = store.resolve({
-      __typename: 'UserModel',
+      __typename: 'User',
       id: '1',
       name: 'John (updated)',
       posts: [

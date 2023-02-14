@@ -19,11 +19,12 @@ export class RootStoreGenerator {
 
   get rootStoreModels() {
     return this.models.map(model => {
-      return `${model.userEditableModelClassName},`;
+      return `${model.modelType.name}: ${model.userEditableModelClassName},`;
     }).join('\n');
   }
 
   get code() {
+    // I gave up trying to avoid keeping code inline with the template string. :(
     return `
 import { createContext } from 'react';
 import { RootStore } from 'mobx-depot';
