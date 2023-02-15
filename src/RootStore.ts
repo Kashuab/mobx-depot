@@ -1,5 +1,3 @@
-import {UserModel} from "../models/UserModel";
-
 type KeyOf<T extends object> = Extract<keyof T, string>;
 
 interface IModel {
@@ -30,6 +28,9 @@ export class RootStore<Models extends RootStoreModels, ModelName extends KeyOf<M
   instances: Record<string, Record<string, InstanceType<IModel>>> = {};
   models: Models;
 
+  /**
+   * @param models A map of `{ "__typename": ModelClass }` for all resolvable types
+   */
   constructor(models: Models) {
     this.models = models;
   }

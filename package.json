@@ -1,29 +1,39 @@
 {
   "name": "mobx-depot",
-  "private": false,
-  "version": "0.1.0",
-  "scripts": {
-    "generate": "ts-node-dev src/generate.ts",
-    "cli": "ts-node src/cli.ts",
-    "gen": "yarn cli generate http://localhost:3000/graphql",
-    "qb": "ts-node src/QueryBuilder.ts",
-    "rs": "ts-node src/RootStore.ts"
+  "description": "Generate MobX models from a GraphQL schema",
+  "version": "0.0.1",
+  "license": "MIT",
+  "author": "Kyle Kashuba",
+  "homepage": "https://github.com/KashubaK/mobx-depot",
+  "bugs": "https://github.com/KashubaK/mobx-depot/issues",
+  "source": "src/index.ts",
+  "main": "dist/index.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "mobx-depot": "dist/cli.js"
   },
-  "dependencies": {
-    "@abraham/reflection": "^0.12.0",
-    "change-case": "^4.1.2",
-    "dedent": "^0.7.0",
-    "graphql": "^16.6.0",
-    "graphql-request": "^5.1.0",
-    "indent-string": "^5.0.0",
-    "inversify": "^6.0.1",
-    "mobx": "^6.8.0",
-    "mobx-react-lite": "^3.4.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "yargs": "^17.6.2"
+  "scripts": {
+    "build-client": "microbundle --no-compress --entry src/index.ts --format cjs,esm --target web --external mobx,graphql,graphql-request,react",
+    "build-cli": "microbundle --entry src/cli.ts --output dist/cli.js --format cjs --target node --external graphql-request",
+    "cli": "ts-node src/cli.ts",
+    "gen": "yarn cli generate http://localhost:3000/graphql"
+  },
+  "peerDependencies": {
+    "graphql": "16",
+    "graphql-request": "5",
+    "mobx": "6"
   },
   "devDependencies": {
+    "change-case": "^4.1.2",
+    "dedent": "^0.7.0",
+    "mobx": "^6.8.0",
+    "mobx-react-lite": "^3.4.0",
+    "yargs": "^17.6.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "graphql": "^16.6.0",
+    "graphql-request": "^5.1.0",
     "@types/dedent": "^0.7.0",
     "@types/jest": "^29.4.0",
     "@types/node": "^18.13.0",
@@ -31,6 +41,7 @@
     "@types/react-dom": "^18.0.10",
     "@types/yargs": "^17.0.22",
     "jest": "^29.4.2",
+    "microbundle": "^0.15.1",
     "ts-jest": "^29.0.5",
     "ts-node": "^10.9.1",
     "ts-node-dev": "^2.0.0",
