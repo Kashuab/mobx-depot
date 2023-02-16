@@ -14,11 +14,19 @@ import {MutationGenerator} from "./generators/MutationGenerator";
 import {InputObjectInterfaceGenerator} from "./generators/InputObjectInterfaceGenerator";
 import {QueryGenerator} from "./generators/QueryGenerator";
 import {RootStoreGenerator} from "./generators/RootStoreGenerator";
+import { resolve } from 'path';
 
-export async function generate(url: string) {
+type GenerateOpts = {
+  url: string;
+  outDir: string;
+}
+
+export async function generate(opts: GenerateOpts) {
+  const { url, outDir } = opts;
+  
   const query = await makeIntrospectionQuery(url);
 
-  fs.writeFileSync('introspection.json', JSON.stringify(query, null, 2));
+  // fs.writeFileSync('introspection.json', JSON.stringify(query, null, 2));
 
   generateScalars(query);
 
@@ -28,76 +36,131 @@ export async function generate(url: string) {
   generateInputObjectInterfaces(query);
   generateMutations(query);
   generateQueries(query);
-}
 
-export function generateRootStore(models: ModelGenerator[]) {
-  const rootStore = new RootStoreGenerator(models);
-
-  writeRootStoreToDisk(rootStore);
-}
-
-export function writeRootStoreToDisk(rootStore: RootStoreGenerator) {
-  if (!fs.existsSync('models/depot')) {
-    fs.mkdirSync('models/depot', { recursive: true });
+  function generateRootStore(models: ModelGenerator[]) {
+    const rootStore = new RootStoreGenerator(models);
+  
+    writeRootStoreToDisk(rootStore);
+  }
+  
+  function generateQueries(query: IntrospectionQuery) {
+    const queryType = query.__schema.types.find(type => type.name === 'Query');
+    if (!queryType) {
+      throw new Error('Expected queryType to be defined');
+    }
+  
+    if (!('fields' in queryType)) {
+      throw new Error('Expected queryType to have fields');
+    }
+  
+    const generators = queryType.fields.map(field => new QueryGenerator(field));
+  
+    writeQueriesToDisk(generators);
+  }
+  
+  function generateInputObjectInterfaces(query: IntrospectionQuery) {
+    const inputObjectTypes = query.__schema.types
+      .filter(type => type.kind === 'INPUT_OBJECT') as IntrospectionInputObjectType[];
+  
+    const generators = inputObjectTypes.map(type => new InputObjectInterfaceGenerator(type));
+  
+    writeInputObjectInterfacesToDisk(generators);
+  }
+  
+  function generateMutations(query: IntrospectionQuery) {
+    const mutationType = query.__schema.types.find(type => type.name === 'Mutation');
+    if (!mutationType) {
+      throw new Error('Expected mutationType to be defined');
+    }
+  
+    if (!('fields' in mutationType)) {
+      throw new Error('Expected mutationType to have fields');
+    }
+  
+    const generators = mutationType.fields.map(field => new MutationGenerator(field));
+  
+    writeMutationsToDisk(generators);
+  }
+  
+  function generateScalars(query: IntrospectionQuery) {
+    const scalarTypes = query.__schema.types
+      .filter(type => isScalarType(type) && !scalarIsPrimitive(type)) as IntrospectionScalarType[];
+  
+    const generators = scalarTypes.map(type => new ScalarGenerator(type));
+  
+    writeScalarsToDisk(generators);
+  }
+  
+  function generateModels(query: IntrospectionQuery) {
+    const modelGenerators = query.__schema.types
+      .filter(isModelType)
+      .map(type => new ModelGenerator(type));
+  
+    writeModelsToDisk(modelGenerators);
+  
+    return modelGenerators;
   }
 
-  fs.writeFileSync(`models/depot/${rootStore.fileName}`, rootStore.code);
-}
-
-export function generateQueries(query: IntrospectionQuery) {
-  const queryType = query.__schema.types.find(type => type.name === 'Query');
-  if (!queryType) {
-    throw new Error('Expected queryType to be defined');
+  function withOutDir(path: string) {
+    return resolve(outDir, path);
   }
 
-  if (!('fields' in queryType)) {
-    throw new Error('Expected queryType to have fields');
+  function writeScalarsToDisk(scalars: ScalarGenerator[]) {
+    if (!fs.existsSync(withOutDir('depot'))) {
+      fs.mkdirSync(withOutDir('depot'), { recursive: true });
+    }
+
+    fs.writeFileSync(withOutDir(`depot/scalars.ts`), scalars.map(scalar => scalar.code).join('\n\n'));
+  }
+  
+  function writeModelsToDisk(models: ModelGenerator[]) {
+    if (!fs.existsSync(withOutDir('depot/base'))) {
+      fs.mkdirSync(withOutDir('depot/base'), { recursive: true });
+    }
+  
+    models.forEach(model => {
+      fs.writeFileSync(withOutDir(`depot/base/${model.baseModelFileName}`), model.baseModelCode);
+      fs.writeFileSync(withOutDir(`${model.userEditableModelFileName}`), model.userEditableModelCode)
+    });
+  }
+  
+  function writeInputObjectInterfacesToDisk(inputObjectInterfaces: InputObjectInterfaceGenerator[]) {
+    if (!fs.existsSync(withOutDir('depot/inputs'))) {
+      fs.mkdirSync(withOutDir('depot/inputs'), { recursive: true });
+    }
+  
+    inputObjectInterfaces.forEach(inputObjectInterface => {
+      fs.writeFileSync(withOutDir(`depot/inputs/${inputObjectInterface.fileName}`), inputObjectInterface.code);
+    });
+  }
+  
+  function writeMutationsToDisk(mutations: MutationGenerator[]) {
+    if (!fs.existsSync(withOutDir('depot/mutations'))) {
+      fs.mkdirSync(withOutDir('depot/mutations'), { recursive: true });
+    }
+  
+    mutations.forEach(mutation => {
+      fs.writeFileSync(withOutDir(`depot/mutations/${mutation.fileName}`), mutation.code);
+    });
+  }
+  
+  function writeQueriesToDisk(queries: QueryGenerator[]) {
+    if (!fs.existsSync(withOutDir('depot/queries'))) {
+      fs.mkdirSync(withOutDir('depot/queries'), { recursive: true });
+    }
+  
+    queries.forEach(query => {
+      fs.writeFileSync(withOutDir(`depot/queries/${query.fileName}`), query.code);
+    });
   }
 
-  const generators = queryType.fields.map(field => new QueryGenerator(field));
+  function writeRootStoreToDisk(rootStore: RootStoreGenerator) {
+    if (!fs.existsSync(withOutDir('depot'))) {
+      fs.mkdirSync(withOutDir('depot'), { recursive: true });
+    }
 
-  writeQueriesToDisk(generators);
-}
-
-export function generateInputObjectInterfaces(query: IntrospectionQuery) {
-  const inputObjectTypes = query.__schema.types
-    .filter(type => type.kind === 'INPUT_OBJECT') as IntrospectionInputObjectType[];
-
-  const generators = inputObjectTypes.map(type => new InputObjectInterfaceGenerator(type));
-
-  writeInputObjectInterfacesToDisk(generators);
-}
-
-export function generateMutations(query: IntrospectionQuery) {
-  const mutationType = query.__schema.types.find(type => type.name === 'Mutation');
-  if (!mutationType) {
-    throw new Error('Expected mutationType to be defined');
+    fs.writeFileSync(withOutDir(`depot/${rootStore.fileName}`), rootStore.code);
   }
-
-  if (!('fields' in mutationType)) {
-    throw new Error('Expected mutationType to have fields');
-  }
-
-  const generators = mutationType.fields.map(field => new MutationGenerator(field));
-
-  writeMutationsToDisk(generators);
-}
-
-export function generateScalars(query: IntrospectionQuery) {
-  const scalarTypes = query.__schema.types
-    .filter(type => isScalarType(type) && !scalarIsPrimitive(type)) as IntrospectionScalarType[];
-
-  const generators = scalarTypes.map(type => new ScalarGenerator(type));
-
-  writeScalarsToDisk(generators);
-}
-
-export function writeScalarsToDisk(scalars: ScalarGenerator[]) {
-  if (!fs.existsSync('models/depot')) {
-    fs.mkdirSync('models/depot', { recursive: true });
-  }
-
-  fs.writeFileSync(`models/depot/scalars.ts`, scalars.map(scalar => scalar.code).join('\n\n'));
 }
 
 type Kind = IntrospectionType['kind'] | 'LIST' | 'NON_NULL';
@@ -121,55 +184,4 @@ export function scalarIsPrimitive(type: IntrospectionScalarType | IntrospectionN
   }
 
   return ['string', 'number', 'boolean'].includes(typeName);
-}
-
-export function generateModels(query: IntrospectionQuery) {
-  const modelGenerators = query.__schema.types
-    .filter(isModelType)
-    .map(type => new ModelGenerator(type));
-
-  writeModelsToDisk(modelGenerators);
-
-  return modelGenerators;
-}
-
-export function writeModelsToDisk(models: ModelGenerator[]) {
-  if (!fs.existsSync('models/depot/base')) {
-    fs.mkdirSync('models/depot/base', { recursive: true });
-  }
-
-  models.forEach(model => {
-    fs.writeFileSync(`models/depot/base/${model.baseModelFileName}`, model.baseModelCode);
-    fs.writeFileSync(`models/${model.userEditableModelFileName}`, model.userEditableModelCode)
-  });
-}
-
-export function writeInputObjectInterfacesToDisk(inputObjectInterfaces: InputObjectInterfaceGenerator[]) {
-  if (!fs.existsSync('models/depot/inputs')) {
-    fs.mkdirSync('models/depot/inputs', { recursive: true });
-  }
-
-  inputObjectInterfaces.forEach(inputObjectInterface => {
-    fs.writeFileSync(`models/depot/inputs/${inputObjectInterface.fileName}`, inputObjectInterface.code);
-  });
-}
-
-export function writeMutationsToDisk(mutations: MutationGenerator[]) {
-  if (!fs.existsSync('models/depot/mutations')) {
-    fs.mkdirSync('models/depot/mutations', { recursive: true });
-  }
-
-  mutations.forEach(mutation => {
-    fs.writeFileSync(`models/depot/mutations/${mutation.fileName}`, mutation.code);
-  });
-}
-
-export function writeQueriesToDisk(queries: QueryGenerator[]) {
-  if (!fs.existsSync('models/depot/queries')) {
-    fs.mkdirSync('models/depot/queries', { recursive: true });
-  }
-
-  queries.forEach(query => {
-    fs.writeFileSync(`models/depot/queries/${query.fileName}`, query.code);
-  });
 }

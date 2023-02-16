@@ -35,7 +35,7 @@ export class RootStore<Models extends RootStoreModels, ModelName extends KeyOf<M
     this.models = models;
   }
   
-  getStore<T extends Models[string]>(Model: T) {
+  getInstanceStore<T extends Models[string]>(Model: T) {
     const store = this.instances[Model.name];
     if (!store) {
       this.instances[Model.name] = {};
@@ -80,7 +80,7 @@ export class RootStore<Models extends RootStoreModels, ModelName extends KeyOf<M
 
     if (this.resolvable(data)) {
       const Model = this.getModel(data.__typename);
-      const store = this.getStore(Model);
+      const store = this.getInstanceStore(Model);
       const instance = store[resolvedData.id];
 
       if (instance) {
@@ -96,7 +96,7 @@ export class RootStore<Models extends RootStoreModels, ModelName extends KeyOf<M
   }
 
   get<T extends Models[string]>(Model: T, id: string): InstanceType<T> | null {
-    return this.getStore(Model)[id] || null;
+    return this.getInstanceStore(Model)[id] || null;
   }
 
   update<T extends Models[string]>(Model: T, id: string, data: Partial<InstanceType<T>['properties']>) {
@@ -110,7 +110,7 @@ export class RootStore<Models extends RootStoreModels, ModelName extends KeyOf<M
 
   create<T extends Models[string]>(Model: T, properties: Partial<InstanceType<T>['properties']>): InstanceType<T> {
     const instance = new Model(properties) as InstanceType<T>;
-    const store = this.getStore(Model);
+    const store = this.getInstanceStore(Model);
     const id = instance.properties.id;
 
     if (store[instance.properties.id]) {

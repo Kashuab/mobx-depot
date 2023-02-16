@@ -6,6 +6,7 @@ export class UserModel {
     id: string
     name: string
     posts: PostModel[]
+    user: UserModel;
   }
 
   constructor(properties: UserModel['properties']) {

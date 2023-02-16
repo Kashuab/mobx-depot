@@ -28,11 +28,30 @@ export class RootStoreGenerator {
     return `
 import { createContext } from 'react';
 import { RootStore } from 'mobx-depot';
+import { GraphQLClient } from 'graphql-request';
 ${this.modelImports}
 
-export const rootStore = new RootStore({
+const rootStore = new RootStore({
 ${indentString(this.rootStoreModels, 2)}
 });
+
+let graphqlClient: GraphQLClient | null = null;
+
+export function getGraphQLClient() {
+  if (!graphqlClient) {
+    throw new Error('GraphQL client not set, you must call setGraphQLClient in the root of your application.');
+  }
+  
+  return graphqlClient;
+}
+
+export function getRootStore() {
+  return rootStore;
+}
+
+export function setGraphQLClient(client: GraphQLClient) {
+  graphqlClient = client;
+}
 
 type RootStoreProviderProps = { children: React.ReactNode };
 

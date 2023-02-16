@@ -16,17 +16,22 @@ describe('RootStore', () => {
 
   it('can resolve a simple model', () => {
     const resolved = store.resolve({
-      __typename: 'User',
-      id: '1',
-      name: 'John',
+      user: {
+        __typename: 'User',
+        id: '1',
+        name: 'John',
+      }
     } as const);
 
-    expect(resolved).toBeInstanceOf(UserModel);
+    expect(resolved.user).toBeInstanceOf(UserModel);
   })
 
   it('can deeply resolve data', () => {
     const resolved = store.resolve({
       createUser: {
+        __typename: 'User',
+        id: '2',
+        name: 'Jeff',
         user: {
           __typename: 'User',
           id: '1',
@@ -47,8 +52,9 @@ describe('RootStore', () => {
       }
     } as const);
 
-    expect(resolved.createUser.user).toBeInstanceOf(UserModel);
-    expect(resolved.createUser.user.properties.posts[0]).toBeInstanceOf(PostModel);
+    expect(resolved.createUser).toBeInstanceOf(UserModel);
+    expect(resolved.createUser.properties.user).toBeInstanceOf(UserModel);
+    expect(resolved.createUser.properties.user.properties.posts[0]).toBeInstanceOf(PostModel);
   });
 
   it('can retain references', () => {

@@ -159,7 +159,7 @@ export class ModelGenerator {
 
   get propertyGetter() {
     return `
-      get(key: keyof ${this.baseModelClassName}): ${this.baseModelClassName}[typeof key] {
+      get<K extends keyof ${this.modelPropertiesClassName}>(key: K): ${this.modelPropertiesClassName}[K] {
         return this.properties[key];
       }
     `;
@@ -167,10 +167,14 @@ export class ModelGenerator {
 
   get propertySetter() {
     return `
-      set<K extends keyof ${this.baseModelClassName}>(key: K, value: ${this.baseModelClassName}[K]) {
+      set<K extends keyof ${this.modelPropertiesClassName}>(key: K, value: ${this.modelPropertiesClassName}[K]) {
         this.properties[key] = value;
       }
     `;
+  }
+
+  get modelPropertiesClassName() {
+    return `${this.userEditableModelClassName}Properties`;
   }
 
   get userEditableModelCode() {
@@ -178,11 +182,15 @@ export class ModelGenerator {
       import { makeAutoObservable } from 'mobx';
       import { ${this.baseModelClassName} } from './depot/base/${this.baseModelClassName}';
       
+      export class ${this.modelPropertiesClassName} extends ${this.baseModelClassName} {
+        // Add your own local properties here. This is also a good place to add getters for computed properties.
+      }
+      
       export class ${this.userEditableModelClassName} {
-        properties: ${this.baseModelClassName};
+        properties: ${this.modelPropertiesClassName};
         
-        constructor(init: Partial<${this.baseModelClassName}>) {
-          this.properties = new ${this.baseModelClassName}(init);
+        constructor(init: Partial<${this.modelPropertiesClassName}>) {
+          this.properties = new ${this.modelPropertiesClassName}(init);
           
           makeAutoObservable(this);
         }

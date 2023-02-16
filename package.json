@@ -10,9 +10,7 @@
   "main": "dist/index.js",
   "module": "dist/index.esm.js",
   "types": "dist/index.d.ts",
-  "bin": {
-    "mobx-depot": "dist/cli.js"
-  },
+  "bin":  "dist/cli.js",
   "scripts": {
     "build-client": "microbundle --no-compress --entry src/index.ts --format cjs,esm --target web --external mobx,graphql,graphql-request,react",
     "build-cli": "microbundle --entry src/cli.ts --output dist/cli.js --format cjs --target node --external graphql-request",

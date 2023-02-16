@@ -85,6 +85,7 @@ export class MutationGenerator {
       "import { gql, GraphQLClient } from 'graphql-request';",
       "import { buildSelection } from 'mobx-depot';",
       `import { ${this.payloadModelName} } from '../../${this.payloadModelName}';`,
+      "import { getGraphQLClient, getRootStore } from '../rootStore';",
       this.payloadSelectorImport,
       ...this.mutationVariableImports,
     ].join('\n');
@@ -132,6 +133,8 @@ export class MutationGenerator {
   get properties() {
     return indentString(
       [
+        '__rootStore = getRootStore();',
+        '__client = getGraphQLClient();',
         this.hasArgs && `args: ${this.argumentsTypeName};`,
         'selection: string;',
         'loading = false;',
@@ -171,9 +174,8 @@ export class MutationGenerator {
       get document() {
         return gql\`
           mutation ${pascalCase(this.field.name)}(${this.documentVariableDefinitions}) {
-            ${this.field.name}(${this.documentVariables}) {
+            ${this.field.name}(${this.documentVariables}) 
               \${this.selection}
-            }
           }
         \`
       }
@@ -190,13 +192,13 @@ export class MutationGenerator {
 
   get mutateMethod() {
     return indentString(dedent`
-      async mutate(client: GraphQLClient) {
+      async mutate() {
         this.setLoading(true);
         
-        const data = await client.request<${this.payloadModelName}>(this.document${this.hasArgs ? ', this.args' : ''});
+        const data = await this.__client.request<{ ${this.field.name}: ${this.payloadModelName} }>(this.document${this.hasArgs ? ', this.args' : ''});
         this.setLoading(false);
         
-        return data;
+        return this.__rootStore.resolve(data);
       }
     `, 2);
   }
