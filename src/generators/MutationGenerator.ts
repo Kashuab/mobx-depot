@@ -71,12 +71,16 @@ export class MutationGenerator {
     return `${this.fieldTypeName}Model`;
   }
 
+  get baseModelName() {
+    return `${this.fieldTypeName}BaseModel`;
+  }
+
   get payloadSelectorName() {
-    return `selectFrom${this.fieldTypeName}Properties`;
+    return `selectFrom${this.baseModelName}`;
   }
 
   get payloadSelectorImport() {
-    return `import { ${this.payloadSelectorName} } from '../base/${this.fieldTypeName}Properties';`;
+    return `import { ${this.payloadSelectorName} } from '../base/${this.baseModelName}';`;
   }
 
   get imports() {
@@ -157,7 +161,7 @@ export class MutationGenerator {
   get documentVariableDefinitions() {
     // TODO: Multiple argument mutations
     return this.field.args.reduce((variables, arg) => {
-      let definition = `$${arg.name}: ${getTypeName(arg.type)}`;
+      let definition = `$${arg.name}: ${getTypeName(arg.type, { normalizeName: false, stripArrayType: false })}`;
 
       if (arg.type.kind === 'NON_NULL') {
         definition += '!';

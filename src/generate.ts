@@ -171,6 +171,11 @@ export async function generate(opts: GenerateOpts) {
 
 type Kind = IntrospectionType['kind'] | 'LIST' | 'NON_NULL';
 
+/*
+  There are a lot of functions spread out that answer questions about the introspection query.
+  I'm wondering if we should implement some sort of Introspection class to encapsulate this logic.
+*/
+
 export function isScalarType(type: { kind: Kind, ofType?: { kind: Kind } }): type is { kind: 'SCALAR' } {
   if (type.kind == 'LIST' || type.kind == 'NON_NULL') {
     if (!type.ofType) throw new Error('Expected ofType to be defined');
