@@ -113,14 +113,20 @@ export async function generate(opts: GenerateOpts) {
     fs.writeFileSync(withOutDir(`depot/scalars.ts`), scalars.map(scalar => scalar.code).join('\n\n'));
   }
   
-  function writeModelsToDisk(models: ModelGenerator[]) {
+  function writeModelsToDisk(models: ModelGenerator[], force = false) {
     if (!fs.existsSync(withOutDir('depot/base'))) {
       fs.mkdirSync(withOutDir('depot/base'), { recursive: true });
     }
   
     models.forEach(model => {
       fs.writeFileSync(withOutDir(`depot/base/${model.baseModelFileName}`), model.baseModelCode);
-      fs.writeFileSync(withOutDir(`${model.userEditableModelFileName}`), model.userEditableModelCode)
+
+      const userEditablePath = withOutDir(`${model.userEditableModelFileName}`);
+      if (!force && fs.existsSync(userEditablePath)) {
+        return;
+      }
+
+      fs.writeFileSync(userEditablePath, model.userEditableModelCode)
     });
   }
   

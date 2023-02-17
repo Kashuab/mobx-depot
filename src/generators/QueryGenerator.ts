@@ -37,7 +37,11 @@ export class QueryGenerator {
   get imports() {
     return [
       "import { makeAutoObservable } from 'mobx';",
-      "import { gql, GraphQLClient } from 'graphql-request';",
+      "import { gql } from 'graphql-request';",
+      "import { buildSelection } from 'mobx-depot';",
+      "import { getGraphQLClient, getRootStore } from '../rootStore';",
+      `import { ${this.payloadModelName} } from '../../${this.payloadModelName}';`,
+      `import { ${this.payloadSelectorName} } from '../base/${this.fieldTypeName}Properties';`,
       ...this.queryArgumentImports,
     ].join('\n');
   }
@@ -75,12 +79,20 @@ export class QueryGenerator {
     return `type ${this.argumentsTypeName} = { ${this.argDefinitions.join(', ')} };`
   }
 
+  get fieldTypeName() {
+    return getTypeName(this.field.type);
+  }
+
+  get payloadSelectorName() {
+    return `selectFrom${this.fieldTypeName}Properties`;
+  }
+
   get constructorFunction() {
     return indentString(
       [
-        `constructor(${this.hasArgs ? `args: ${this.argumentsTypeName}, ` : ''}selection: string) {`,
+        `constructor(${this.hasArgs ? `args: ${this.argumentsTypeName}, ` : ''}select: Parameters<typeof ${this.payloadSelectorName}>[0]) {`,
         this.hasArgs && indentString("this.args = args;", 2),
-        indentString("this.selection = selection;", 2),
+        indentString(`this.selection = buildSelection(${this.payloadSelectorName}(select));`, 2),
         indentString("makeAutoObservable(this);", 2),
         '}',
       ].filter(Boolean).join('\n'),
@@ -91,6 +103,8 @@ export class QueryGenerator {
   get properties() {
     return indentString(
       [
+        '__rootStore = getRootStore();',
+        '__client = getGraphQLClient();',
         this.hasArgs && `args: ${this.argumentsTypeName};`,
         'selection: string;',
         'loading = false;',
@@ -147,15 +161,19 @@ export class QueryGenerator {
     `, 2);
   }
 
+  get payloadModelName() {
+    return `${this.fieldTypeName}Model`;
+  }
+
   get queryMethod() {
     return indentString(dedent`
-      async query(client: GraphQLClient) {
+      async query() {
         this.setLoading(true);
         
-        const data = await client.request(this.document${this.hasArgs ? ', this.args' : ''});
+        const data = await this.__client.request<{ ${this.field.name}: ${this.payloadModelName} }>(this.document${this.hasArgs ? ', this.args' : ''});
         this.setLoading(false);
         
-        return data;
+        return this.__rootStore.resolve(data);
       }
     `, 2);
   }

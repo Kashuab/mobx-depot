@@ -82,7 +82,7 @@ export class MutationGenerator {
   get imports() {
     return [
       "import { makeAutoObservable } from 'mobx';",
-      "import { gql, GraphQLClient } from 'graphql-request';",
+      "import { gql } from 'graphql-request';",
       "import { buildSelection } from 'mobx-depot';",
       `import { ${this.payloadModelName} } from '../../${this.payloadModelName}';`,
       "import { getGraphQLClient, getRootStore } from '../rootStore';",

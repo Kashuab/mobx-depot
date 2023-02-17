@@ -67,7 +67,7 @@ export class ModelGenerator {
   }
 
   className(name = this.modelType.name, base = false) {
-    return `${name}${base ? 'Properties' : 'Model'}`;
+    return `${name}${base ? 'BaseModel' : 'Model'}`;
   }
 
   get baseModelClassName() {
@@ -157,45 +157,27 @@ export class ModelGenerator {
     return segments.join('\n');
   }
 
-  get propertyGetter() {
-    return `
-      get<K extends keyof ${this.modelPropertiesClassName}>(key: K): ${this.modelPropertiesClassName}[K] {
-        return this.properties[key];
-      }
-    `;
-  }
-
   get propertySetter() {
     return `
-      set<K extends keyof ${this.modelPropertiesClassName}>(key: K, value: ${this.modelPropertiesClassName}[K]) {
-        this.properties[key] = value;
+      set<K extends keyof this>(key: K, value: this[K]) {
+        this[key] = value;
       }
     `;
-  }
-
-  get modelPropertiesClassName() {
-    return `${this.userEditableModelClassName}Properties`;
   }
 
   get userEditableModelCode() {
     return dedent`
-      import { makeAutoObservable } from 'mobx';
+      import { makeModelObservable } from 'mobx-depot';
       import { ${this.baseModelClassName} } from './depot/base/${this.baseModelClassName}';
       
-      export class ${this.modelPropertiesClassName} extends ${this.baseModelClassName} {
-        // Add your own local properties here. This is also a good place to add getters for computed properties.
-      }
-      
-      export class ${this.userEditableModelClassName} {
-        properties: ${this.modelPropertiesClassName};
-        
-        constructor(init: Partial<${this.modelPropertiesClassName}>) {
-          this.properties = new ${this.modelPropertiesClassName}(init);
+      export class ${this.userEditableModelClassName} extends ${this.baseModelClassName} {
+        constructor(init: Partial<${this.baseModelClassName}>) {
+          super(init);
           
-          makeAutoObservable(this);
+          makeModelObservable(this);
         }
         
-        ${indentString(this.propertyGetter, 2)}${indentString(this.propertySetter, 2)}
+        ${indentString(this.propertySetter, 2)}
       }
     `
   }
