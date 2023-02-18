@@ -113,6 +113,14 @@ export class MutationGenerator {
     return `type ${this.argumentsTypeName} = { ${this.argDefinitions.join(', ')} };`
   }
 
+  get dataTypeName() {
+    return `${this.className}Data`;
+  }
+
+  get dataType() {
+    return `type ${this.dataTypeName} = { ${this.field.name}: ${this.payloadModelName} }`;
+  }
+
   get argDefinitions() {
     return this.field.args.map(arg => `${arg.name}: ${getTypeName(arg.type)}`);
   }
@@ -142,6 +150,8 @@ export class MutationGenerator {
         this.hasArgs && `args: ${this.argumentsTypeName};`,
         'selection: string;',
         'loading = false;',
+        `data: ${this.dataTypeName} | null = null;`,
+        `mutatePromise: Promise<${this.dataTypeName}> | null = null;`,
       ].filter(Boolean).join('\n'),
       2,
     )
@@ -186,6 +196,14 @@ export class MutationGenerator {
     `, 2).replace(/\\/g, '');
   }
 
+  get setArgsMethod() {
+    return indentString(dedent`
+      setArgs(args: ${this.argumentsTypeName}) {
+        this.args = args;
+      }
+    `, 2);
+  }
+
   get setLoadingMethod() {
     return indentString(dedent`
       setLoading(loading: boolean) {
@@ -194,15 +212,43 @@ export class MutationGenerator {
     `, 2);
   }
 
+  get setDataMethod() {
+    return indentString(dedent`
+      setData(data: ${this.dataTypeName} | null) {
+        this.data = data;
+      }
+    `, 2);
+  }
+
+  get setMutatePromiseMethod() {
+    return indentString(dedent`
+      setMutatePromise(promise: Promise<${this.dataTypeName}> | null) {
+        this.mutatePromise = promise;
+      }
+    `, 2);
+  }
+
   get mutateMethod() {
     return indentString(dedent`
       async mutate() {
-        this.setLoading(true);
+        // TODO: Cancel current mutation if exists
+        const promise = (async () => {
+          this.setLoading(true);
+          
+          // TODO: This generic isn't technically accurate...
+          const data = await this.__client.request<${this.dataTypeName}>(this.document${this.hasArgs ? ', this.args' : ''});
+          const resolvedData = this.__rootStore.resolve(data);
+          
+          this.setMutatePromise(null);
+          this.setLoading(false);
+          this.setData(resolvedData);
+          
+          return resolvedData;
+        })();
         
-        const data = await this.__client.request<{ ${this.field.name}: ${this.payloadModelName} }>(this.document${this.hasArgs ? ', this.args' : ''});
-        this.setLoading(false);
+        this.setMutatePromise(promise);
         
-        return this.__rootStore.resolve(data);
+        return await promise;
       }
     `, 2);
   }
@@ -215,11 +261,15 @@ export class MutationGenerator {
     const segments = [
       this.imports,
       this.argumentsType,
+      this.dataType,
       this.header,
       this.properties,
       this.constructorFunction,
       this.documentGetter,
+      this.setArgsMethod,
       this.setLoadingMethod,
+      this.setDataMethod,
+      this.setMutatePromiseMethod,
       this.mutateMethod,
       this.footer
     ];

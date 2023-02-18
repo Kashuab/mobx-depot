@@ -1,9 +1,9 @@
 type KeyOf<T extends object> = Extract<keyof T, string>;
 
 interface IModel {
-  new (initProps: any): {
-    properties: any;
-  };
+  new (...args: any[]): {
+    id?: string;
+  } | {};
 }
 
 export type GQLData<Typename extends string> = Record<string, Resolvable<Typename> | Resolvable<Typename>[]> & Record<string, unknown>;
@@ -22,17 +22,22 @@ type DeepResolved<Models extends RootStoreModels, ModelName extends KeyOf<Models
         : Data[key]
 }
 
-export type RootStoreModels = Record<string, IModel>;
+export type RootStoreModels = { readonly [key: string]: IModel };
 
 export class RootStore<Models extends RootStoreModels, ModelName extends KeyOf<Models>> {
   instances: Record<string, Record<string, InstanceType<IModel>>> = {};
-  models: Models;
+  private _models: Models | null = null;
+  private readonly generateModels: () => Models;
+
+  private get models() {
+    return this._models ||= this.generateModels();
+  }
 
   /**
    * @param models A map of `{ "__typename": ModelClass }` for all resolvable types
    */
-  constructor(models: Models) {
-    this.models = models;
+  constructor(models: () => Models) {
+    this.generateModels = models;
   }
   
   getInstanceStore<T extends Models[string]>(Model: T) {
@@ -51,18 +56,18 @@ export class RootStore<Models extends RootStoreModels, ModelName extends KeyOf<M
     return model;
   }
 
-  resolvable(data: object): data is Resolvable<ModelName> {
-    if (!('id' in data) || !('__typename' in data)) return false;
-    if (typeof data.__typename !== 'string' || !(data.__typename in this.models)) return false;
-    return typeof data.id === 'string';
+  isResolvable(data: object): data is Resolvable<ModelName> {
+    if (!('__typename' in data)) return false;
+    return !(typeof data.__typename !== 'string' || !(data.__typename in this.models));
   }
 
+  // TODO: __typename gets in the instances
   resolve<D extends object>(data: D): D extends Resolvable<ModelName> ? InstanceType<Models[typeof data['__typename']]> : DeepResolved<Models, ModelName, D> {
     const resolvedData = Object.entries(data).reduce((resolved, [key, value]) => {
       if (value && typeof value === 'object') {
         if (Array.isArray(value) && typeof value[0] === 'object') {
           resolved[key] = value.map((item) => {
-            if (this.resolvable(item)) {
+            if (this.isResolvable(item)) {
               return this.resolve(item);
             } else {
               return item;
@@ -78,7 +83,7 @@ export class RootStore<Models extends RootStoreModels, ModelName extends KeyOf<M
       return resolved;
     }, {} as any); // TODO: Types
 
-    if (this.resolvable(data)) {
+    if (this.isResolvable(data)) {
       const Model = this.getModel(data.__typename);
       const store = this.getInstanceStore(Model);
       const instance = store[resolvedData.id];
@@ -95,31 +100,31 @@ export class RootStore<Models extends RootStoreModels, ModelName extends KeyOf<M
     return resolvedData;
   }
 
-  get<T extends Models[string]>(Model: T, id: string): InstanceType<T> | null {
+  get<T extends Models[ModelName]>(Model: T, id: string): InstanceType<T> | null {
     return this.getInstanceStore(Model)[id] || null;
   }
 
-  update<T extends Models[string]>(Model: T, id: string, data: Partial<InstanceType<T>['properties']>) {
+  update<T extends Models[ModelName]>(Model: T, id: string, data: Partial<InstanceType<T>>) {
     const instance = this.get(Model, id);
     if (!instance) throw new Error('Instance not found'); // TODO: Better errors
 
-    Object.assign(instance.properties, data);
+    Object.assign(instance, data);
 
     return instance;
   }
 
-  create<T extends Models[string]>(Model: T, properties: Partial<InstanceType<T>['properties']>): InstanceType<T> {
+  create<T extends Models[ModelName]>(Model: T, properties: Partial<InstanceType<T>>): InstanceType<T> {
     const instance = new Model(properties) as InstanceType<T>;
     const store = this.getInstanceStore(Model);
-    const id = instance.properties.id;
+    const id = ('id' in instance ? instance.id : null) || this.generateModelId(Model);
 
-    if (store[instance.properties.id]) {
+    if (store[id]) {
       throw new Error('Instance already exists'); // TODO: Better errors
     }
 
     if (!id) throw new Error('Model must have an id property'); // TODO: Better errors
 
-    store[instance.properties.id] = instance;
+    store[id] = instance;
     this.models[Model.name as keyof Models] = Model;
 
     return instance;
@@ -127,6 +132,17 @@ export class RootStore<Models extends RootStoreModels, ModelName extends KeyOf<M
 
   delete(id: string) {
     return delete this.instances[id];
+  }
+
+  generateModelId<T extends Models[ModelName]>(Model: T) {
+    const generate = () => `__$depot_auto_id:${Math.random().toString(36).substring(2)}`;
+    let idAttempt = generate();
+
+    while (this.get(Model, idAttempt)) {
+      idAttempt = generate();
+    }
+
+    return idAttempt;
   }
 }
 

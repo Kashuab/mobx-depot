@@ -14,6 +14,11 @@ export class ModelGenerator {
     this.selectorGenerator = new ModelSelectorGenerator(this);
   }
 
+  get hasIdField() {
+    // TODO: Opinionated 'id' field name
+    return this.modelType.fields.some(field => field.name === 'id');
+  }
+
   get baseModelFileName() {
     return `${this.baseModelClassName}.ts`;
   }

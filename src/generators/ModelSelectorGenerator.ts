@@ -35,23 +35,21 @@ export class ModelSelectorGenerator {
   }
 
   get proxyType() {
-    /*
-      type LoginUserPayloadSelectorProxy = {
-        [key in keyof Omit<LoginUserPayloadProperties, 'user' | 'userErrors'>]: LoginUserPayloadSelectorProxy;
-      } & {
-        user: (cb: (proxy: UserSelectorProxy) => unknown) => LoginUserPayloadSelectorProxy;
-        userErrors: (cb: (proxy: UserErrorSelectorProxy) => unknown) => LoginUserPayloadSelectorProxy;
-      }
-    */
     const typeName = `${this.model.baseModelClassName}SelectorProxy`;
-    const nestedObjectNameUnion = this.modelNestedObjectFields.map(({ name }) => `'${name}'`).join(' | ');
     const nestedProxyGetters = this.modelNestedObjectFields.map(({ name, type }) =>
       `${name}: (cb: (proxy: ${pascalCase(this.model.className(getTypeName(type), true))}SelectorProxy) => unknown) => ${typeName};`
     )
 
+    const omits = this.modelNestedObjectFields.map(({ name }) => `'${name}'`);
+
+    // TODO: Opinionated ID field name
+    if (this.model.hasIdField) omits.push("'id'");
+
+    const keyofType = omits.length > 0 ? `Omit<${this.model.baseModelClassName}, ${omits.join(' | ')}>` : this.model.baseModelClassName;
+
     let type = dedent`
       export type ${typeName} = {
-        [key in keyof ${this.hasNestedObjects ? `Omit<${this.model.baseModelClassName}, ${nestedObjectNameUnion}>` : this.model.baseModelClassName}]: ${typeName}; 
+        [key in keyof ${keyofType}]: ${typeName}; 
       } ${nestedProxyGetters.length > 0 ? `& {
         ${nestedProxyGetters.join('\n')}
       }` : ''}
@@ -61,12 +59,13 @@ export class ModelSelectorGenerator {
   }
 
   get proxyGenerator() {
-    // DRY
+    // TODO: DRY
     const typeName = `${this.model.baseModelClassName}SelectorProxy`;
 
+    // TODO: Opinionated 'id' field name
     return dedent`
       export function selectFrom${this.model.baseModelClassName}(build: (proxy: ${typeName}) => ${typeName}) {
-        const selectedKeys: StringTree = [];
+        const selectedKeys: StringTree = ['__typename'${this.model.hasIdField ? ", 'id'" : ''}];
         
         const proxy: ${typeName} = new Proxy(new ${this.model.baseModelClassName}({}), {
           get(target, prop) {
@@ -120,39 +119,3 @@ export class ModelSelectorGenerator {
     return segments.join('\n\n');
   }
 }
-
-
-/*
-type LoginUserPayloadSelectorProxy = {
-  [key in keyof Omit<LoginUserPayloadProperties, 'user' | 'userErrors'>]: LoginUserPayloadSelectorProxy;
-} & {
-  user: (cb: (proxy: UserSelectorProxy) => unknown) => LoginUserPayloadSelectorProxy;
-  userErrors: (cb: (proxy: UserErrorSelectorProxy) => unknown) => LoginUserPayloadSelectorProxy;
-}
-
-type StringTree = (string | StringTree)[];
-
-export function selectFromLoginUserPayload(build: (proxy: LoginUserPayloadSelectorProxy) => LoginUserPayloadSelectorProxy) {
-  const selectedKeys: StringTree = [];
-
-  const proxy: LoginUserPayloadSelectorProxy = new Proxy(new LoginUserPayloadProperties({}), {
-    get(target, prop) {
-      selectedKeys.push(prop as string);
-
-      switch (prop) {
-        case 'user':
-          return (buildUser: (proxy: UserSelectorProxy) => UserSelectorProxy) => {
-            selectedKeys.push(selectFromUser(buildUser));
-            return proxy;
-          }
-      }
-
-      return proxy;
-    }
-  }) as unknown as LoginUserPayloadSelectorProxy;
-
-  build(proxy);
-
-  return selectedKeys;
-}
- */

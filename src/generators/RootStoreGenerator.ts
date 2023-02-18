@@ -31,9 +31,10 @@ import { RootStore } from 'mobx-depot';
 import { GraphQLClient } from 'graphql-request';
 ${this.modelImports}
 
-const rootStore = new RootStore({
+// Use a function so they can be injected lazily, avoids circular dependency issues at runtime
+const rootStore = new RootStore(() => ({
 ${indentString(this.rootStoreModels, 2)}
-});
+}));
 
 let graphqlClient: GraphQLClient | null = null;
 
