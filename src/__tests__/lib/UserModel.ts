@@ -1,15 +1,18 @@
 import {PostModel} from "./PostModel";
 
 export class UserModel {
-  properties: {
-    __typename: 'UserModel';
-    id: string
-    name: string
-    posts: PostModel[]
-    user: UserModel;
+  id: string
+  name: string
+  posts: PostModel[]
+  metadata: {
+    lastOnlineAt: string;
+    postCount: number;
   }
 
-  constructor(properties: UserModel['properties']) {
-    this.properties = properties;
+  constructor(init: any) {
+    this.id = init.id;
+    this.name = init.name;
+    this.posts = init.posts;
+    this.metadata = init.metadata;
   }
 }

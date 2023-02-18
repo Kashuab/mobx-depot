@@ -1,11 +1,11 @@
-import {GQLData, RootStore} from "../RootStore";
+import {RootStore} from "../RootStore";
 import {PostModel} from "./lib/PostModel";
 import {UserModel} from "./lib/UserModel";
 
-const createStore = () => new RootStore({
+const createStore = () => new RootStore(() => ({
   User: UserModel,
   Post: PostModel,
-});
+}));
 
 describe('RootStore', () => {
   let store = createStore();
@@ -29,9 +29,7 @@ describe('RootStore', () => {
   it('can deeply resolve data', () => {
     const resolved = store.resolve({
       createUser: {
-        __typename: 'User',
-        id: '2',
-        name: 'Jeff',
+        __typename: 'CreateUserPayload',
         user: {
           __typename: 'User',
           id: '1',
@@ -52,9 +50,8 @@ describe('RootStore', () => {
       }
     } as const);
 
-    expect(resolved.createUser).toBeInstanceOf(UserModel);
-    expect(resolved.createUser.properties.user).toBeInstanceOf(UserModel);
-    expect(resolved.createUser.properties.user.properties.posts[0]).toBeInstanceOf(PostModel);
+    expect(resolved.createUser.user).toBeInstanceOf(UserModel);
+    expect(resolved.createUser.user.posts[0]).toBeInstanceOf(PostModel);
   });
 
   it('can retain references', () => {
@@ -90,7 +87,67 @@ describe('RootStore', () => {
     } as const);
 
     expect(updatedUser).toBe(user);
-    expect(updatedUser.properties.posts[0]).toBe(post);
-    expect(updatedUser.properties.posts[1]).toBe(secondPost);
+    expect(updatedUser.posts[0]).toBe(post);
+    expect(updatedUser.posts[1]).toBe(secondPost);
+  });
+
+  it('can replace instances', () => {
+    const userData = {
+      __typename: 'User',
+      id: '1',
+      name: 'Kyle',
+      posts: [
+        {
+          __typename: 'Post',
+          id: '1',
+          title: 'Bing bong'
+        }
+      ]
+    } as const;
+
+    const resolvedUser = store.resolve(userData);
+    const originalPost = resolvedUser.posts[0];
+    const newPost = new PostModel({ id: '__localModel', title: 'Woah!' });
+
+    store.replace(originalPost, newPost);
+
+    expect(resolvedUser.posts[0]).toBe(newPost);
+    expect(store.get(PostModel, originalPost.id)).toBe(newPost);
+  });
+
+  it('deep merges resolved data', () => {
+    const createUserPayload = store.resolve({
+      createUser: {
+        __typename: 'CreateUserPayload',
+        user: {
+          __typename: 'User',
+          id: '1',
+          name: 'Bing bong',
+          metadata: {
+            lastOnlineAt: 'now',
+          }
+        }
+      }
+    } as const);
+
+    const updateUserPayload = store.resolve({
+      updateUser: {
+        user: {
+          __typename: 'User',
+          id: '1',
+          metadata: {
+            postCount: 0,
+          }
+        }
+      }
+    } as const);
+
+    const user = createUserPayload.createUser.user;
+    const updatedUser = updateUserPayload.updateUser.user;
+
+    expect(user).toBe(updatedUser);
+    expect(user.name).toBe('Bing bong');
+    expect(user.metadata.lastOnlineAt).toBe('now');
+    expect(user.metadata.postCount).toBe(0);
   })
 });

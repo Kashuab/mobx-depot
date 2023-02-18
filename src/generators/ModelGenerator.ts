@@ -66,6 +66,8 @@ export class ModelGenerator {
 
   get imports() {
     return dedent`
+      import { getRootStore } from '../rootStore';
+      import { assignInstanceProperties } from 'mobx-depot';
       ${this.scalarImports}
       ${this.modelImports}
     `;
@@ -91,13 +93,13 @@ export class ModelGenerator {
     // TODO: Is this okay?
     return indentString(dedent`
       constructor(init: Partial<${this.baseModelClassName}>) {
-        Object.assign(this, init);
+        assignInstanceProperties(this, init);
       }
     `, 2);
   }
 
   get properties() {
-    return this.modelType.fields
+    const fieldProperties = this.modelType.fields
       .map(field => {
         if (!('name' in field.type)) {
           console.warn('Model field does not support name', field);
@@ -122,7 +124,11 @@ export class ModelGenerator {
         return `${definition}\n${accessor}`;
       })
       .filter(Boolean)
-      .reduce((acc, cur) => `${acc}${cur}\n`, '');
+
+    return [
+      indentString(`store = getRootStore();`, 2),
+      ...fieldProperties,
+    ].join('\n');
   }
 
   accessorMethods(fieldName: string, fieldType: string) {
