@@ -9,6 +9,13 @@ interface IMutation {
   mutate: () => Promise<unknown>;
 }
 
+/**
+ * When using a method on a class that returns the mutation, don't pass it in directly. Use an arrow function:
+ * `useMutation(() => user.create())` instead of `useMutation(user.create)` Otherwise, the context of `this` will be
+ * lost, resulting in a runtime error.
+ *
+ * @param generate A function that returns a `Mutation` instance.
+ */
 export function useMutation<Mutation extends IMutation, Data extends Exclude<Mutation['data'], null>>(generate: () => Mutation) {
   const [mutation, setMutation] = useState<Mutation | null>(null);
 
