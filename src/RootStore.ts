@@ -8,8 +8,6 @@ interface IModel {
   } | {};
 }
 
-export type GQLData<Typename extends string> = Record<string, Resolvable<Typename> | Resolvable<Typename>[]> & Record<string, unknown>;
-
 type Resolvable<Typename extends string> = {
   __typename: Typename;
   id: string;
@@ -70,11 +68,15 @@ export class RootStore<Models extends RootStoreModels, ModelName extends KeyOf<M
     if (this.isResolvable(data)) {
       const Model = this.getModel(data.__typename);
       const store = this.getInstanceStore(Model);
-      const instance = store[resolvedData.id];
+      const id = this.getInstanceId(resolvedData);
 
-      if (instance) {
-        // TODO: Types
-        return this.update(Model, resolvedData.id, resolvedData) as any;
+      if (id) {
+        const instance = store[id];
+
+        if (instance) {
+          // TODO: Types
+          return this.update(Model, id, resolvedData) as any;
+        }
       }
 
       // TODO: Types
@@ -100,7 +102,7 @@ export class RootStore<Models extends RootStoreModels, ModelName extends KeyOf<M
   public create<T extends Models[ModelName]>(Model: T, properties: Partial<InstanceType<T>>): InstanceType<T> {
     const instance = new Model(properties) as InstanceType<T>;
     const store = this.getInstanceStore(Model);
-    const id = ('id' in instance ? instance.id : null) || this.generateModelId(Model);
+    const id = this.getInstanceId(instance) || this.generateModelId(Model);
 
     if (store[id]) {
       throw new Error('Instance already exists'); // TODO: Better errors
@@ -119,8 +121,9 @@ export class RootStore<Models extends RootStoreModels, ModelName extends KeyOf<M
    */
   public replace<T extends Models[ModelName]>(target: InstanceType<T>, source: InstanceType<T>) {
     const TargetModel = this.getModelClass(target);
+    const targetId = this.getInstanceId(target);
 
-    if (!('id' in target) || !target.id) {
+    if (!targetId) {
       throw new Error(`Target is not eligible for replacement: ${TargetModel.name}`);
     }
 
@@ -130,10 +133,22 @@ export class RootStore<Models extends RootStoreModels, ModelName extends KeyOf<M
     }
 
     const store = this.getInstanceStore(TargetModel);
-    store[target.id] = source;
+    store[targetId] = source;
 
     this.keep(source);
     this.deepReplace(target, source);
+  }
+
+  private getInstanceId(instance: InstanceType<Models[ModelName]>): string | null {
+    try {
+      if (!('id' in instance) || !instance.id) return null;
+
+      return instance.id;
+    } catch (err) {
+      // TODO: Check for SelectionError, remove console.error
+      console.error(err);
+      return null;
+    }
   }
 
   private getModelClass<T extends Models[ModelName]>(instance: InstanceType<T>): T {
@@ -145,8 +160,13 @@ export class RootStore<Models extends RootStoreModels, ModelName extends KeyOf<M
    */
   private deepReplace<T extends Models[ModelName]>(target: InstanceType<T>, source: InstanceType<T>) {
     const allStores = Object.values(this.instances);
+    const injected: any[] = [];
 
     const inject = (obj: any) => {
+      // Prevent infinite recursion in case of circular references
+      if (injected.includes(obj)) return;
+      injected.push(obj);
+
       for (const key in obj) {
         if (!obj.hasOwnProperty(key)) continue;
 
@@ -178,7 +198,8 @@ export class RootStore<Models extends RootStoreModels, ModelName extends KeyOf<M
   }
 
   private keep(instance: InstanceType<Models[ModelName]>) {
-    if (!('id' in instance) || !instance.id) {
+    const id = this.getInstanceId(instance);
+    if (!id) {
       throw new Error(`Target is not eligible for injection: ${this.getModelClass(instance).name}`);
     }
 
@@ -189,7 +210,7 @@ export class RootStore<Models extends RootStoreModels, ModelName extends KeyOf<M
       throw new Error(`Model not recognized: ${Model.name}`);
     }
 
-    store[instance.id] = instance;
+    store[id] = instance;
   }
   
   private getInstanceStore<T extends Models[string]>(Model: T) {

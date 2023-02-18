@@ -32,9 +32,13 @@ import { GraphQLClient } from 'graphql-request';
 ${this.modelImports}
 
 // Use a function so they can be injected lazily, avoids circular dependency issues at runtime
-const rootStore = new RootStore(() => ({
+const getModels = () => ({
 ${indentString(this.rootStoreModels, 2)}
-}));
+});
+
+export type RootStoreModel = ReturnType<typeof getModels>[keyof ReturnType<typeof getModels>];
+
+const rootStore = new RootStore(getModels);
 
 let graphqlClient: GraphQLClient | null = null;
 

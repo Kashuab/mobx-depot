@@ -15,6 +15,7 @@ import {InputObjectInterfaceGenerator} from "./generators/InputObjectInterfaceGe
 import {QueryGenerator} from "./generators/QueryGenerator";
 import {RootStoreGenerator} from "./generators/RootStoreGenerator";
 import { resolve } from 'path';
+import {generateUseInstanceHooks} from "./generators/UseInstanceGenerator";
 
 type GenerateOpts = {
   url: string;
@@ -36,6 +37,13 @@ export async function generate(opts: GenerateOpts) {
   generateInputObjectInterfaces(query);
   generateMutations(query);
   generateQueries(query);
+  generateHooks();
+
+  function generateHooks() {
+    const useInstanceHooks = generateUseInstanceHooks();
+
+    fs.writeFileSync(withOutDir(`depot/hooks.ts`), useInstanceHooks);
+  }
 
   function generateRootStore(models: ModelGenerator[]) {
     const rootStore = new RootStoreGenerator(models);

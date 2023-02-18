@@ -143,6 +143,25 @@ export class ModelGenerator {
     `, 2);
   }
 
+  get selectedDataGetter() {
+    return indentString(dedent`
+      get selectedData() {
+        const data: Partial<this> = {};
+        const keys: (keyof this)[] = [${this.modelType.fields.map(f => `'${f.name}'`).join(', ')}]
+    
+        keys.forEach(key => {
+          try {
+            data[key] = this[key];
+          } catch (err) {
+            // TODO: Check for SelectionError
+          }
+        });
+    
+        return data;
+      }
+    `, 2);
+  }
+
   get footer() {
     return `}`;
   }
@@ -161,6 +180,7 @@ export class ModelGenerator {
       this.header,
       this.properties,
       this.constructorFunction,
+      this.selectedDataGetter,
       this.footer,
       this.selectorGenerator.code,
     ];
