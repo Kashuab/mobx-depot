@@ -1,7 +1,7 @@
 {
   "name": "mobx-depot",
   "description": "Generate MobX models from a GraphQL schema",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "license": "MIT",
   "author": "Kyle Kashuba",
   "homepage": "https://github.com/KashubaK/mobx-depot",
