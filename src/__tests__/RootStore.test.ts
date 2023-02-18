@@ -132,6 +132,7 @@ describe('RootStore', () => {
 
     const updateUserPayload = store.resolve({
       updateUser: {
+        __typename: 'UpdateUserPayload',
         user: {
           __typename: 'User',
           id: '1',

@@ -235,9 +235,9 @@ export class MutationGenerator {
         const promise = (async () => {
           this.setLoading(true);
           
-          // TODO: This generic isn't technically accurate...
-          const data = await this.__client.request<${this.dataTypeName}>(this.document${this.hasArgs ? ', this.args' : ''});
-          const resolvedData = this.__rootStore.resolve(data);
+          // TODO: __client.request generic? data is any...
+          const data = await this.__client.request(this.document${this.hasArgs ? ', this.args' : ''});
+          const resolvedData = this.__rootStore.resolve(data) as ${this.dataTypeName};
           
           this.setMutatePromise(null);
           this.setLoading(false);

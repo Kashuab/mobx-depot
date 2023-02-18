@@ -41,7 +41,7 @@ export class QueryGenerator {
       "import { buildSelection } from 'mobx-depot';",
       "import { getGraphQLClient, getRootStore } from '../rootStore';",
       `import { ${this.payloadModelName} } from '../../${this.payloadModelName}';`,
-      `import { ${this.payloadSelectorName} } from '../base/${this.fieldTypeName}Properties';`,
+      `import { ${this.payloadSelectorName} } from '../base/${this.baseModelName}';`,
       ...this.queryArgumentImports,
     ].join('\n');
   }
@@ -83,8 +83,12 @@ export class QueryGenerator {
     return getTypeName(this.field.type);
   }
 
+  get baseModelName() {
+    return `${this.fieldTypeName}BaseModel`;
+  }
+
   get payloadSelectorName() {
-    return `selectFrom${this.fieldTypeName}Properties`;
+    return `selectFrom${this.baseModelName}`;
   }
 
   get constructorFunction() {
@@ -108,6 +112,8 @@ export class QueryGenerator {
         this.hasArgs && `args: ${this.argumentsTypeName};`,
         'selection: string;',
         'loading = false;',
+        `data: ${this.dataTypeName} | null = null;`,
+        `queryPromise: Promise<${this.dataTypeName}> | null = null;`,
       ].filter(Boolean).join('\n'),
       2,
     )
@@ -161,19 +167,63 @@ export class QueryGenerator {
     `, 2);
   }
 
+  get setArgsMethod() {
+    return indentString(dedent`
+      setArgs(args: ${this.argumentsTypeName}) {
+        this.args = args;
+      }
+    `, 2);
+  }
+
+  get setDataMethod() {
+    return indentString(dedent`
+      setData(data: ${this.dataTypeName} | null) {
+        this.data = data;
+      }
+    `, 2);
+  }
+
+  get setQueryPromiseMethod() {
+    return indentString(dedent`
+      setQueryPromise(promise: Promise<${this.dataTypeName}> | null) {
+        this.queryPromise = promise;
+      }
+    `, 2);
+  }
+
   get payloadModelName() {
     return `${this.fieldTypeName}Model`;
+  }
+
+  get dataTypeName() {
+    return `${this.className}Data`;
+  }
+
+  get dataType() {
+    return `type ${this.dataTypeName} = { ${this.field.name}: ${this.payloadModelName} }`;
   }
 
   get queryMethod() {
     return indentString(dedent`
       async query() {
-        this.setLoading(true);
+        // TODO: Cancel current query if exists
+        const promise = (async () => {
+          this.setLoading(true);
+          
+          // TODO: __client.request generic? data is any...
+          const data = await this.__client.request(this.document${this.hasArgs ? ', this.args' : ''});
+          const resolvedData = this.__rootStore.resolve(data) as ${this.dataTypeName};
+          
+          this.setQueryPromise(null);
+          this.setLoading(false);
+          this.setData(resolvedData);
+          
+          return resolvedData;
+        })();
         
-        const data = await this.__client.request<{ ${this.field.name}: ${this.payloadModelName} }>(this.document${this.hasArgs ? ', this.args' : ''});
-        this.setLoading(false);
+        this.setQueryPromise(promise);
         
-        return this.__rootStore.resolve(data);
+        return await promise;
       }
     `, 2);
   }
@@ -186,11 +236,15 @@ export class QueryGenerator {
     const segments = [
       this.imports,
       this.argumentsType,
+      this.dataType,
       this.header,
       this.properties,
       this.constructorFunction,
       this.documentGetter,
       this.setLoadingMethod,
+      this.setArgsMethod,
+      this.setDataMethod,
+      this.setQueryPromiseMethod,
       this.queryMethod,
       this.footer
     ];
