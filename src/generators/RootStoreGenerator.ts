@@ -8,7 +8,7 @@ export class RootStoreGenerator {
     this.models = models;
   }
 
-  fileName = "rootStore.tsx";
+  fileName = "rootStore.ts";
 
   get modelImports() {
     return this.models.map(model => {
