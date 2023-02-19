@@ -40,16 +40,20 @@ export class ModelSelectorGenerator {
       `${name}: (cb: (proxy: ${pascalCase(this.model.className(getTypeName(type), true))}SelectorProxy) => unknown) => ${typeName};`
     )
 
-    const omits = this.modelNestedObjectFields.map(({ name }) => `'${name}'`);
+    const omits = [
+      ...this.modelNestedObjectFields.map(({ name }) => `'${name}'`),
+      'set', // Need to omit other methods from the class
+      'assign',
+      'selectedData',
+      'store',
+    ]
 
     // TODO: Opinionated ID field name
     if (this.model.hasIdField) omits.push("'id'");
 
-    const keyofType = omits.length > 0 ? `Omit<${this.model.baseModelClassName}, ${omits.join(' | ')}>` : this.model.baseModelClassName;
-
     let type = dedent`
       export type ${typeName} = {
-        [key in keyof ${keyofType}]: ${typeName}; 
+        [key in keyof Omit<${this.model.baseModelClassName}, ${omits.join(' | ')}>]: ${typeName}; 
       } ${nestedProxyGetters.length > 0 ? `& {
         ${nestedProxyGetters.join('\n')}
       }` : ''}
