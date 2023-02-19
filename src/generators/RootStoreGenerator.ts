@@ -25,7 +25,6 @@ export class RootStoreGenerator {
   get code() {
     // I gave up trying to avoid keeping code inline with the template string. :(
     return `
-import { createContext } from 'react';
 import { RootStore } from 'mobx-depot';
 import { GraphQLClient } from 'graphql-request';
 ${this.modelImports}
