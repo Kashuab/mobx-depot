@@ -250,7 +250,13 @@ export const EditTodoForm = observer(({ todo }: EditTodoFormProps) => {
     () => new UpdateTodoMutation(
       { id: todo.id, todo: { title: todo.title, content: todo.content } },
       todo => todo.title.content,
-    )
+    ),
+    {
+      onSuccess: (data) => {
+        console.log(data);
+        alert('Updated todo!')
+      },
+    }
   );
   
   return (
@@ -301,7 +307,12 @@ export class TodoModel extends TodoBaseModel {
 ...
 
 export const EditTodoForm = observer(({ todo }: EditTodoFormProps) => {
-  const { data, loading, dispatch } = useMutation(() => todo.save());
+  const { data, loading, dispatch } = useMutation(() => todo.save(), {
+    onSuccess: (data) => {
+      console.log(data);
+      alert('Updated todo!')
+    },
+  });
   
   return (
     <div className="EditTodoForm">
@@ -380,6 +391,10 @@ export class TodoModel extends TodoBaseModel {
   }
 }
 ```
+
+> **Note: `useMutation` does not work with async functions.** Its sole purpose is to handle the lifecycle of a mutation.
+> If you're handling it yourself by `await`ing the `mutate` method, it's expected that you're handling the result on
+> your own.
 
 ## Referential stability
 

@@ -85,9 +85,11 @@ export class InputObjectInterfaceGenerator {
       .filter(field => field.name !== "clientMutationId")
       .map(field => {
         const typeName = getTypeName(field.type);
-        const optionalFlag = field.type.kind === 'NON_NULL' ? '' : '?';
+        const nullable = field.type.kind !== 'NON_NULL';
+        const optionalFlag = nullable ? '?' : '';
+        const nullUnion = nullable ? ' | null' : '';
 
-        return indentString(`${field.name}${optionalFlag}: ${typeName};`, 2);
+        return indentString(`${field.name}${optionalFlag}: ${typeName}${nullUnion};`, 2);
       })
       .join('\n');
   }
