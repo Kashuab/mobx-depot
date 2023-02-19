@@ -42,10 +42,10 @@ export class ModelSelectorGenerator {
 
     const omits = [
       ...this.modelNestedObjectFields.map(({ name }) => `'${name}'`),
-      'set', // Need to omit other methods from the class
-      'assign',
-      'selectedData',
-      'store',
+      "'set'", // Need to omit other methods from the class
+      "'assign'",
+      "'selectedData'",
+      "'store'",
     ]
 
     // TODO: Opinionated ID field name
