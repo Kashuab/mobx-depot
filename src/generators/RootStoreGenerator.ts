@@ -1,6 +1,5 @@
 import {ModelGenerator} from "./ModelGenerator";
 import {indentString} from "../lib/indentString";
-import dedent from "dedent";
 
 export class RootStoreGenerator {
   models: ModelGenerator[] = [];
@@ -57,13 +56,6 @@ export function getRootStore() {
 export function setGraphQLClient(client: GraphQLClient) {
   graphqlClient = client;
 }
-
-type RootStoreProviderProps = { children: React.ReactNode };
-
-export const RootStoreContext = createContext({ rootStore });
-export const RootStoreProvider = ({ children }: RootStoreProviderProps) => (
-  <RootStoreContext.Provider value={{ rootStore }}>{children}</RootStoreContext.Provider>
-);
     `;
   }
 }

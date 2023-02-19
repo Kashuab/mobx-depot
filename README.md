@@ -401,12 +401,28 @@ MobX has limitations regarding the use of `makeAutoObservable` with subclasses. 
 limitation by determining the required annotations by traversing over `this` and its prototypes, then providing them to
 `makeObservable`.
 
-**Do not use this in your own code, unless you know exactly what you're doing.** This works for us because:
+**Do not use this in your own code.** This works for us because:
 
 - We're not extending an external class
 - `BaseModel`s are designed to be inherited from, and are not meant to be instantiated directly
 
 See relevant MobX discussion: https://github.com/mobxjs/mobx/discussions/2850#discussioncomment-5022315
+
+### `wontfix`
+
+I'd like to emphasize [@urugator's comment](https://github.com/mobxjs/mobx/discussions/2850#discussioncomment-498925):
+
+> [...] this is not a suggested way to go, therefore I don't want to promote it in any way. Whatever you expose, some
+> people will use it, twist it, misuse it, and in the end it will always come back to you, no matter the warnings.
+> Automatic behavior provides convenience for common/simple cases. If it can't support inheritance reliably, the
+> responsible thing to do is either not introducing automatic behavior in the first place (no longer an option) or to
+> forbid cases that could lead to issues.
+> 
+> I am quite convinced that the cost of using makeObservable instead of makeAutoObservable (or even better getting rid
+> of inheritance) for these ~10 classes , will be lower than the cost of introducing and maintaining any workaround.
+
+Any usage of `makeModelObservable` outside of the sole purpose of extending `BaseModel`s is unsupported. Any issues
+regarding non-generated usage of `makeModelObservable` will be closed as `wontfix`.
 
 I have yet to find a case where this doesn't work. If you do, _please open an issue!_ 
 
