@@ -150,9 +150,8 @@ export class QueryGenerator {
       get document() {
         return gql\`
           query ${pascalCase(this.field.name)}${this.documentVariableDefinitions ? `(${this.documentVariableDefinitions})` : ''} {
-            ${this.field.name}${this.documentVariables ? `(${this.documentVariables})` : ''} {
+            ${this.field.name}${this.documentVariables ? `(${this.documentVariables})` : ''} 
               \${this.selection}
-            }
           }
         \`
       }

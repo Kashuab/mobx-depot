@@ -47,7 +47,7 @@ export class RootStore<Models extends RootStoreModels, ModelName extends KeyOf<M
   public resolve<D extends object>(data: D): DeepResolved<Models, ModelName, D> {
     const resolvedData = Object.entries(data).reduce((resolved, [key, value]) => {
       if (value && typeof value === 'object') {
-        if (Array.isArray(value) && typeof value[0] === 'object') {
+        if (Array.isArray(value)) {
           resolved[key] = value.map((item) => {
             if (this.isResolvable(item)) {
               return this.resolve(item);

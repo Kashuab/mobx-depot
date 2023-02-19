@@ -54,6 +54,22 @@ describe('RootStore', () => {
     expect(resolved.createUser.user.posts[0]).toBeInstanceOf(PostModel);
   });
 
+  it('preserves array types', () => {
+    const resolved = store.resolve({
+      createUser: {
+        __typename: 'CreateUserPayload',
+        user: {
+          __typename: 'User',
+          id: '1',
+          name: 'John',
+          posts: [],
+        }
+      }
+    } as const);
+
+    expect(resolved.createUser.user.posts).toBeInstanceOf(Array);
+  })
+
   it('can retain references', () => {
     const user = store.resolve({
       __typename: 'User',
