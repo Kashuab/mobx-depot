@@ -1,4 +1,5 @@
 import {UserModel} from "./UserModel";
+import {assignInstanceProperties} from "../../lib/assignInstanceProperties";
 
 export class PostModel {
   id: string;
@@ -9,5 +10,9 @@ export class PostModel {
     this.id = init.id;
     this.title = init.title;
     this.user = init.user;
+  }
+
+  assign(data: Partial<PostModel>) {
+    assignInstanceProperties(this, data);
   }
 }

@@ -90,10 +90,10 @@ export class ModelGenerator {
   }
 
   get constructorFunction() {
-    // TODO: Is this okay?
+    // TODO: Is Partial ideal here? I think it could include functions, which is not ideal
     return indentString(dedent`
       constructor(init: Partial<${this.baseModelClassName}>) {
-        assignInstanceProperties(this, init);
+        this.assign(init);
       }
     `, 2);
   }
@@ -173,6 +173,22 @@ export class ModelGenerator {
     `;
   }
 
+  get assignMethod() {
+    return indentString(dedent`
+      assign(data: Partial<${this.baseModelClassName}>) {
+        assignInstanceProperties(this, data);
+      }
+    `, 2);
+  }
+
+  get propertySetter() {
+    return indentString(dedent`
+      set<K extends keyof this>(key: K, value: this[K]) {
+        this[key] = value;
+      }
+    `, 2);
+  }
+
   get baseModelCode() {
     const segments = [
       this.baseModelWarning,
@@ -181,19 +197,13 @@ export class ModelGenerator {
       this.properties,
       this.constructorFunction,
       this.selectedDataGetter,
+      this.propertySetter,
+      this.assignMethod,
       this.footer,
       this.selectorGenerator.code,
     ];
 
     return segments.join('\n');
-  }
-
-  get propertySetter() {
-    return `
-      set<K extends keyof this>(key: K, value: this[K]) {
-        this[key] = value;
-      }
-    `;
   }
 
   get userEditableModelCode() {
@@ -202,13 +212,11 @@ export class ModelGenerator {
       import { ${this.baseModelClassName} } from './depot/base/${this.baseModelClassName}';
       
       export class ${this.userEditableModelClassName} extends ${this.baseModelClassName} {
-        constructor(init: Partial<${this.baseModelClassName}>) {
+        constructor(init: Partial<${this.userEditableModelClassName}> = {}) {
           super(init);
           
           makeModelObservable(this);
         }
-        
-        ${indentString(this.propertySetter, 2)}
       }
     `
   }

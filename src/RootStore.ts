@@ -1,11 +1,11 @@
-import {assignInstanceProperties} from "./lib/assignInstanceProperties";
-
 type KeyOf<T extends object> = Extract<keyof T, string>;
 
 interface IModel {
-  new (...args: any[]): {
+  new (...args: any[]): ({
     id?: string;
-  } | {};
+  } | {}) & {
+    assign: (data: any) => void;
+  };
 }
 
 type Resolvable<Typename extends string> = {
@@ -94,7 +94,7 @@ export class RootStore<Models extends RootStoreModels, ModelName extends KeyOf<M
     const instance = this.get(Model, id);
     if (!instance) throw new Error('Instance not found'); // TODO: Better errors
 
-    assignInstanceProperties(instance, data);
+    instance.assign(data);
 
     return instance;
   }
