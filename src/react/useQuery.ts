@@ -1,4 +1,4 @@
-import {useState} from "react";
+import {useEffect, useState} from "react";
 
 // TODO: Better types
 interface IQuery {
@@ -8,10 +8,17 @@ interface IQuery {
   query: () => Promise<unknown>;
 }
 
+type UseQueryOpts = {
+  lazy?: boolean;
+}
 /**
  * @param generate A function that returns a `Query` instance.
  */
-export function useQuery<Query extends IQuery, Data extends Exclude<Query['data'], null>>(generate: () => Query) {
+export function useQuery<Query extends IQuery, Data extends Exclude<Query['data'], null>>(
+  generate: () => Query,
+  opts: UseQueryOpts = {},
+) {
+  const { lazy = false } = opts;
   const [query, setQuery] = useState<Query | null>(null);
 
   const dispatch = async (): Promise<Data> => {
@@ -28,6 +35,12 @@ export function useQuery<Query extends IQuery, Data extends Exclude<Query['data'
     // Is this reliable? :shrug:
     return await newQuery.query() as Data;
   }
+
+  useEffect(() => {
+    if (lazy) return;
+
+    dispatch();
+  }, [lazy]);
 
   return {
     dispatch,
