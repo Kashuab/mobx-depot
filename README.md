@@ -91,7 +91,7 @@ import { makeModelObservable } from 'mobx-depot';
 import { TodoBaseModel } from './depot/base/TodoBaseModel';
 
 export class TodoModel extends TodoBaseModel {
-  constructor(init: Partial<TodoModel>) {
+  constructor(init: Partial<TodoModel> = {}) {
     super(init);
     
     makeModelObservable(this);
@@ -120,7 +120,7 @@ You'll find all of these properties accessible on `this`. Let's add a getter tha
 
 ```tsx
 export class TodoModel extends TodoBaseModel {
-  constructor(init: Partial<TodoBaseModel>) {
+  constructor(init: Partial<TodoBaseModel> = {}) {
     super(init);
     
     makeModelObservable(this);
@@ -216,7 +216,7 @@ export class TodoModel extends TodoBaseModel {
     return new TodosQuery(todo => todo.title.content.completedAt);
   }
   
-  constructor(init: Partial<TodoBaseModel>) {
+  constructor(init: Partial<TodoBaseModel> = {}) {
     super(init);
     
     makeModelObservable(this);
@@ -276,7 +276,7 @@ dumb!
 import { UpdateTodoMutation } from '../models/depot/mutations/UpdateTodoMutation';
 
 export class TodoModel extends TodoBaseModel {
-  constructor(init: Partial<TodoBaseModel>) {
+  constructor(init: Partial<TodoBaseModel> = {}) {
     super(init);
 
     makeModelObservable(this);
@@ -324,7 +324,7 @@ You can `dispatch` the `Mutation` if your model needs to handle the response, ho
 
 ```tsx
 export class TodoModel extends TodoBaseModel {
-  constructor(init: Partial<TodoBaseModel>) {
+  constructor(init: Partial<TodoBaseModel> = {}) {
     super(init);
 
     makeModelObservable(this);
@@ -360,7 +360,7 @@ However, if you don't plan on handling the intermediate state of the mutation, y
 
 ```tsx
 export class TodoModel extends TodoBaseModel {
-  constructor(init: Partial<TodoBaseModel>) {
+  constructor(init: Partial<TodoBaseModel> = {}) {
     super(init);
 
     makeModelObservable(this);
