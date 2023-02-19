@@ -122,7 +122,10 @@ export async function generate(opts: GenerateOpts) {
       fs.mkdirSync(withOutDir('depot'), { recursive: true });
     }
 
-    fs.writeFileSync(withOutDir(`depot/scalars.ts`), scalars.map(scalar => scalar.code).join('\n\n'));
+    fs.writeFileSync(
+      withOutDir(`depot/scalars.ts`),
+      withDontEditWarning(scalars.map(scalar => scalar.code).join('\n\n'))
+    );
   }
   
   function writeModelsToDisk(models: ModelGenerator[], force = false) {

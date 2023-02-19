@@ -80,8 +80,8 @@ Now you're ready to get cooking!
 ## Customizing models
 
 After running the `generate` command with our CLI, each object type in your schema gets turned into two things:
-a `Model`, and its `BaseModel`. The `BaseModel` provides setters and getters for data provided by GraphQL, **you
-should not touch this file.**
+a `Model`, and its `BaseModel`. The `BaseModel` provides setters and getters for data provided by GraphQL. **Do not
+make changes to any `BaseModel` class!** `mobx-depot` will overwrite them when running `generate`.
 
 Here's an example of a generated `Model`:
 
@@ -90,6 +90,7 @@ Here's an example of a generated `Model`:
 import { makeModelObservable } from 'mobx-depot';
 import { TodoBaseModel } from './depot/base/TodoBaseModel';
 
+// Feel free to edit this class :)
 export class TodoModel extends TodoBaseModel {
   constructor(init: Partial<TodoModel> = {}) {
     super(init);
