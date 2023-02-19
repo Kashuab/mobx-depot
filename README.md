@@ -2,8 +2,8 @@
 
 Scaffold MobX-powered models, queries and mutations with your GraphQL schema.
 
-- [NPM](https://www.npmjs.com/package/mobx-depot)
-- [Bundlephobia](https://bundlephobia.com/package/mobx-depot)
+- [NPM](https://www.npmjs.com/package/mobx-depot) ![npm version](https://badgen.net/npm/v/mobx-depot)
+- [Bundlephobia](https://bundlephobia.com/package/mobx-depot) ![gzip size](https://badgen.net/bundlephobia/minzip/mobx-depot) ![tree shaking](https://badgen.net/bundlephobia/tree-shaking/mobx-depot)
 
 ## Expect trouble
 
@@ -17,18 +17,6 @@ I won't have any formal guidelines for contributing until after the first releas
 my vision for the library is clear before I start accepting PRs. Though I'm totally up to review some PRs for bug fixes!
 
 **We only support React and TypeScript at this time.**
-
-## Why?
-
-My inspiration derives from [`mst-gql`](https://github.com/mobxjs/mst-gql). However, I've found many drawbacks:
-
-- Local instantiation is difficult
-  - Consider `User.create`, `user.set('email', ...)`, `user.save` in a `CreateUser` component
-- Partially loaded data is annoying to handle
-  - Having to do `someModel.hasLoaded('someField')` is cumbersome and uses no type predicates
-- Not a fan of `mobx-state-tree`, classes are more intuitive to me
-- Hasn't been updated in 7 months
-  - Too lazy to worry about maintaining a fork, so I'm just going to build an entirely new library. Makes sense, right? 
 
 # Getting started
 
@@ -104,17 +92,16 @@ import { makeModelObservable } from 'mobx-depot';
 import { TodoBaseModel } from './depot/base/TodoBaseModel';
 
 export class TodoModel extends TodoBaseModel {
-  constructor(init: Partial<TodoBaseModel>) {
+  constructor(init: Partial<TodoModel>) {
     super(init);
     
     makeModelObservable(this);
   }
-  
-  set<K extends keyof this>(key: K, value: this[K]) {
-    this[key] = value;
-  }
 }
 ```
+
+> **Note:** You shouldn't have to touch the constructor. If you do, make sure the first argument remains
+> `Partial<TodoModel>`. The `RootStore` relies on this argument in order to resolve new instances.
 
 Let's assume that the `Todo` type looks like this:
 
@@ -142,10 +129,6 @@ export class TodoModel extends TodoBaseModel {
   
   get isComplete() {
     return !!this.completedAt;
-  }
-  
-  set<K extends keyof this>(key: K, value: this[K]) {
-    this[key] = value;
   }
 }
 ```
@@ -224,6 +207,32 @@ To fix this, add `.completedAt` to the selection builder:
 const { data, loading } = useQuery(() => new TodosQuery(todo => todo.title.content.completedAt));
 ```
 
+I find that adding queries to static methods within the most relevant `Model` is a good way to keep things organized:
+
+```tsx
+// src/models/TodoModel.ts
+
+export class TodoModel extends TodoBaseModel {
+  static findAll() {
+    return new TodosQuery(todo => todo.title.content.completedAt);
+  }
+  
+  constructor(init: Partial<TodoBaseModel>) {
+    super(init);
+    
+    makeModelObservable(this);
+  }
+}
+```
+
+```tsx
+const { data, loading } = useQuery(() => TodoModel.findAll());
+```
+
+Be wary of adding too many queries to a single `Model`. A good rule of thumb is to use a static method for general
+queries that can be used across the app, and keep highly specific queries local to where they're needed (i.e. component,
+hook, some instance method elsewhere.)
+
 ## Mutations with `useMutation`
 
 Let's update a `todo`!
@@ -258,6 +267,8 @@ export const EditTodoForm = observer(({ todo }: EditTodoFormProps) => {
 });
 ```
 
+> **Note:** See our usage of `todo.set`? The `set` method comes from `TodoBaseModel` as a built-in action.
+
 I heavily recommend putting the `UpdateTodoMutation` instantiation within a method on your model. This keeps components
 dumb!
 
@@ -274,10 +285,6 @@ export class TodoModel extends TodoBaseModel {
 
   get isComplete() {
     return !!this.completedAt;
-  }
-
-  set<K extends keyof this>(key: K, value: this[K]) {
-    this[key] = value;
   }
   
   save() {
@@ -310,6 +317,10 @@ export const EditTodoForm = observer(({ todo }: EditTodoFormProps) => {
 });
 ```
 
+> **Note:** Do not pass `todo.save` directly into `useMutation` (`useMutation(todo.save)`). This will cause the method to lose its context,
+> thus any usage of `this` will inevitably fail. Use an arrow function, or bind the method to the instance.
+> (i.e. `() => todo.save()`, `todo.save.bind(todo)`)
+
 You can `dispatch` the `Mutation` if your model needs to handle the response, however it gets a bit interesting:
 
 ```tsx
@@ -322,10 +333,6 @@ export class TodoModel extends TodoBaseModel {
 
   get isComplete() {
     return !!this.completedAt;
-  }
-
-  set<K extends keyof this>(key: K, value: this[K]) {
-    this[key] = value;
   }
 
   save() {
@@ -345,7 +352,7 @@ export class TodoModel extends TodoBaseModel {
 
 > **NOTE: You do not need to manually update your instance.** If your instance knows its ID (which is automatically selected by
 > generated queries/mutations,) and the GraphQL query returns that same ID in the payload the `RootStore` will
-> automatically reconcile the data.
+> automatically reconcile the data in any existing instances.
 
 As you can see, the `save` method stays synchronous so it can return the `mutation` to the `useMutation` hook.
 This allows your components to stay updated when the state of the `mutation` changes.
@@ -362,10 +369,6 @@ export class TodoModel extends TodoBaseModel {
 
   get isComplete() {
     return !!this.completedAt;
-  }
-
-  set<K extends keyof this>(key: K, value: this[K]) {
-    this[key] = value;
   }
 
   async save() {
@@ -389,6 +392,23 @@ instead.
 [See the tests for `RootStore`](src/__tests__/RootStore.test.ts) for a better understanding. More thorough docs on this
 coming soon.
 
+# Gotchas
+
+## `makeModelObservable`
+
+You may have noticed that generated models use `makeModelObservable` from `mobx-depot` instead of `makeAutoObservable`.
+MobX has limitations regarding the use of `makeAutoObservable` with subclasses. `makeModelObservable` works around this
+limitation by determining the required annotations by traversing over `this` and its prototypes, then providing them to
+`makeObservable`.
+
+**Do not use this in your own code, unless you know exactly what you're doing.** This works for us because:
+
+- We're not extending an external class
+- `BaseModel`s are designed to be inherited from, and are not meant to be instantiated directly
+
+See relevant MobX discussion: https://github.com/mobxjs/mobx/discussions/2850#discussioncomment-5022315
+
+I have yet to find a case where this doesn't work. If you do, _please open an issue!_ 
 
 
 
