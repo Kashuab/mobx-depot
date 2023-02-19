@@ -8,6 +8,10 @@ interface IMutation {
   mutate: () => Promise<unknown>;
 }
 
+type UseMutationOpts<Data> = {
+  onSuccess?: (data: Data) => void;
+}
+
 /**
  * When using a method on a class that returns the mutation, don't pass it in directly. Use an arrow function:
  * `useMutation(() => user.create())` instead of `useMutation(user.create)` Otherwise, the context of `this` will be
@@ -15,7 +19,10 @@ interface IMutation {
  *
  * @param generate A function that returns a `Mutation` instance.
  */
-export function useMutation<Mutation extends IMutation, Data extends Exclude<Mutation['data'], null>>(generate: () => Mutation) {
+export function useMutation<Mutation extends IMutation, Data extends Exclude<Mutation['data'], null>>(
+  generate: () => Mutation,
+  opts: UseMutationOpts<Data> = {},
+) {
   const [mutation, setMutation] = useState<Mutation | null>(null);
 
   const dispatch = async (): Promise<Data> => {
@@ -23,14 +30,20 @@ export function useMutation<Mutation extends IMutation, Data extends Exclude<Mut
 
     setMutation(newMutation);
 
+    let data: Data;
+
     if (newMutation.mutatePromise) {
       // If the mutation is already in progress, await its promise
-      return await newMutation.mutatePromise as Data;
+      data = await newMutation.mutatePromise as Data;
+    } else {
+      // Automatically mutate if the generate function didn't call it already.
+      // Is this reliable? :shrug:
+      data = await newMutation.mutate() as Data;
     }
 
-    // Automatically mutate if the generate function didn't call it already.
-    // Is this reliable? :shrug:
-    return await newMutation.mutate() as Data;
+    opts.onSuccess?.(data);
+
+    return data;
   }
 
   return {
