@@ -3,12 +3,12 @@
 Scaffold MobX-powered models, queries and mutations with your GraphQL schema.
 
 - [NPM](https://www.npmjs.com/package/mobx-depot)
-- [Bundlephobia](https://bundlephobia.com/package/mobx-depot@0.0.5)
+- [Bundlephobia](https://bundlephobia.com/package/mobx-depot)
 
 ## Expect trouble
 
 Until this library is published on NPM with version `>=0.1.0`, expect trouble. There are many "pre-release" issues
-that still need to be tackled before I recommend usage. That being said, `mobx-depot` may "just work" for you.
+that still need to be tackled and tests to be written before I recommend usage. That being said, `mobx-depot` may "just work" for you.
 
 If you do run into any bugs, please [create an issue](https://github.com/Kashuab/mobx-depot/issues)!
 
