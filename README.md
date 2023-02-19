@@ -54,11 +54,10 @@ Your app will have some sort of `src/App.tsx`. You will need to:
 
 - Initialize a `GraphQLClient` from `graphql-request`
 - Pass the client into `setGraphQLClient` exported from the generated root store (`models/depot/rootStore`)
-- Render the `<RootStoreProvider>` from the generated root store, nest your element tree within it
 
 ```tsx
 import { GraphQLClient } from "graphql-request";
-import { setGraphQLClient, RootStoreProvider } from './models/depot/rootStore';
+import { setGraphQLClient } from './models/depot/rootStore';
 
 // This may be different if you're not using Vite, or have some other environment variable for this.
 const API_URL = import.meta.env.VITE_API_URL;
@@ -69,9 +68,9 @@ setGraphQLClient(client);
 
 export const App = () => {
   return (
-    <RootStoreProvider>
+    <div className="App">
       {/* ... */}
-    </RootStoreProvider>
+    </div>
   )
 }
 ```
