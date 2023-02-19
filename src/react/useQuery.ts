@@ -4,7 +4,6 @@ import {useState} from "react";
 interface IQuery {
   data: unknown;
   loading: boolean;
-  setArgs: (...args: any[]) => void;
   queryPromise: Promise<unknown> | null;
   query: () => Promise<unknown>;
 }

@@ -4,7 +4,6 @@ import {useState} from "react";
 interface IMutation {
   data: unknown;
   loading: boolean;
-  setArgs: (...args: any[]) => void;
   mutatePromise: Promise<unknown> | null;
   mutate: () => Promise<unknown>;
 }

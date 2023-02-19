@@ -80,7 +80,7 @@ export class QueryGenerator {
   }
 
   get fieldTypeName() {
-    return getTypeName(this.field.type);
+    return getTypeName(this.field.type, { normalizeName: true, stripArrayType: true });
   }
 
   get baseModelName() {
@@ -199,8 +199,13 @@ export class QueryGenerator {
     return `${this.className}Data`;
   }
 
+  get fieldReturnsArray() {
+    // yuck
+    return getTypeName(this.field.type, { normalizeName: true }).endsWith('[]');
+  }
+
   get dataType() {
-    return `type ${this.dataTypeName} = { ${this.field.name}: ${this.payloadModelName} }`;
+    return `type ${this.dataTypeName} = { ${this.field.name}: ${this.payloadModelName}${this.fieldReturnsArray ? '[]' : ''} };`;
   }
 
   get queryMethod() {
@@ -242,12 +247,12 @@ export class QueryGenerator {
       this.constructorFunction,
       this.documentGetter,
       this.setLoadingMethod,
-      this.setArgsMethod,
+      this.hasArgs && this.setArgsMethod,
       this.setDataMethod,
       this.setQueryPromiseMethod,
       this.queryMethod,
       this.footer
-    ];
+    ].filter(Boolean);
 
     return segments.join('\n');
   }

@@ -64,7 +64,7 @@ export class MutationGenerator {
   }
 
   get fieldTypeName() {
-    return getTypeName(this.field.type);
+    return getTypeName(this.field.type, { normalizeName: true, stripArrayType: true });
   }
 
   get payloadModelName() {
@@ -117,8 +117,13 @@ export class MutationGenerator {
     return `${this.className}Data`;
   }
 
+  get fieldReturnsArray() {
+    // yuck
+    return getTypeName(this.field.type, { normalizeName: true, stripArrayType: false }).endsWith('[]');
+  }
+
   get dataType() {
-    return `type ${this.dataTypeName} = { ${this.field.name}: ${this.payloadModelName} }`;
+    return `type ${this.dataTypeName} = { ${this.field.name}: ${this.payloadModelName}${this.fieldReturnsArray ? '[]': ''} };`;
   }
 
   get argDefinitions() {
