@@ -142,7 +142,7 @@ Let's get some todos.
 ```tsx
 // src/components/TodoList.tsx
 import { observer } from 'mobx-react-lite';
-import { useQuery } from "./useQuery";
+import { useQuery } from "mobx-depot";
 import { TodosQuery } from '../models/depot/queries/TodosQuery';
 
 export const TodoList = observer(() => {
@@ -175,7 +175,7 @@ For example:
 ```tsx
 // src/components/TodoList.tsx
 import { observer } from 'mobx-react-lite';
-import { useQuery } from "./useQuery";
+import { useQuery } from "mobx-depot";
 import { TodosQuery } from '../models/depot/queries/TodosQuery';
 
 export const TodoList = observer(() => {
