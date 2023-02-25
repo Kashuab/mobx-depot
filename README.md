@@ -24,6 +24,18 @@ Assuming you already have `react` installed...
 
 - `yarn add mobx-depot mobx graphql graphql-request`
 
+Next, add enable experimental decorators to your `tsconfig.json`:
+
+```json
+{
+  ... // other config
+  "compilerOptions": {
+    ... // other options
+    "experimentalDecorators": true
+  }
+}
+```
+
 ## Generate code
 
 - `yarn mobx-depot generate http://localhost:3000/graphql --outDir src/models`
