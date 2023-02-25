@@ -128,18 +128,6 @@ export class ModelGenerator {
     ].join('\n');
   }
 
-  // accessorMethods(fieldName: string, fieldType: string) {
-  //   return indentString(dedent`
-  //     get ${fieldName}(): ${fieldType} {
-  //       if (this._${fieldName} === undefined) throw new Error('Property ${fieldName} is not selected');
-  //       return this._${fieldName};
-  //     }
-  //     set ${fieldName}(value: ${fieldType}) {
-  //       this._${fieldName} = value;
-  //     }\n
-  //   `, 2);
-  // }
-
   get selectedDataGetter() {
     return indentString(dedent`
       get selectedData() {

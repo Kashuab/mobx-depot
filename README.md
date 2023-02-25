@@ -233,6 +233,39 @@ Be wary of adding too many queries to a single `Model`. A good rule of thumb is 
 queries that can be used across the app, and keep highly specific queries local to where they're needed (i.e. component,
 hook, some instance method elsewhere.)
 
+## Selecting "primitives"
+
+It's common to select all the fields from a type that don't reference another model. For example, given this `User`:
+
+```graphql
+type User {
+  id: ID!
+  name: String!
+  email: String!
+  posts: [Post!]!
+}
+
+type Post {
+  id: ID!
+  title: String!
+  content: String!
+}
+```
+
+You can select `name` and `email` by adding `primitives` to your selection builder:
+
+```tsx
+new UsersQuery(user => user.primitives);
+```
+
+This also works with nested types, of course:
+
+```tsx
+new UsersQuery(user => user.primitives.posts(post => post.primitives));
+```
+
+If you're using a supported IDE, you can hover over `primitives` to see the fields it will add to your query.
+
 ## Mutations with `useMutation`
 
 Let's update a `todo`!

@@ -51,15 +51,24 @@ export class ModelSelectorGenerator {
     // TODO: Opinionated ID field name
     if (this.model.hasIdField) omits.push("'id'");
 
-    let type = dedent`
-      export type ${typeName} = {
-        [key in keyof Omit<${this.model.baseModelClassName}, ${omits.join(' | ')}>]: ${typeName}; 
-      } ${nestedProxyGetters.length > 0 ? `& {
-        ${nestedProxyGetters.join('\n')}
-      }` : ''}
-    `;
+    let type =
+`export type ${typeName} = {
+  [key in keyof Omit<${this.model.baseModelClassName}, ${omits.join(' | ')}>]: ${typeName}; 
+} ${nestedProxyGetters.length > 0 ? `& {
+  /**
+    * Adds the following fields to the selection:
+${indentString(this.primitiveFields.map(({ name, type }) => `* - \`${name}\`: \`${getTypeName(type)}\``).join('\n'), 4)}
+    */
+  primitives: ${typeName};
+${indentString(nestedProxyGetters.join('\n'), 2)}
+}` : ''}`;
 
     return type;
+  }
+
+  get primitiveFields() {
+    return this.model.modelType.fields
+      .filter(field => !referencesModel(field.type))
   }
 
   get proxyGenerator() {
@@ -68,13 +77,22 @@ export class ModelSelectorGenerator {
 
     // TODO: Opinionated 'id' field name
     return dedent`
+      const primitiveKeys = [${this.primitiveFields.map(f => `"${f.name}"`).join(', ')}];
+      
       export function selectFrom${this.model.baseModelClassName}(build: (proxy: ${typeName}) => ${typeName}) {
         const selectedKeys: StringTree = ['__typename'${this.model.hasIdField ? ", 'id'" : ''}];
         
         const proxy: ${typeName} = new Proxy(new ${this.model.baseModelClassName}({}), {
           get(target, prop) {
-            selectedKeys.push(prop as string);
-            ${this.hasNestedObjects ? indentString(this.proxyGeneratorNestedObjectSwitch, 6) : ''}
+            switch (prop) {${this.hasNestedObjects ? `\n${indentString(this.proxyGeneratorNestedObjectSwitchCases, 6)}` : ''}
+              case 'primitives':
+                selectedKeys.push(...primitiveKeys);   
+                break;
+              default:
+                selectedKeys.push(prop as string);
+                break;
+            }
+            
             return proxy;
           }
         }) as unknown as ${typeName};
@@ -86,8 +104,8 @@ export class ModelSelectorGenerator {
     `
   }
 
-  get proxyGeneratorNestedObjectSwitch() {
-    const cases = this.modelNestedObjectFields.map(({ name, type }) => {
+  get proxyGeneratorNestedObjectSwitchCases() {
+    return this.modelNestedObjectFields.map(({ name, type }) => {
       const fieldModelName = pascalCase(this.model.className(getTypeName(type), true));
       const selectorProxyName = `${fieldModelName}SelectorProxy`;
 
@@ -98,11 +116,6 @@ export class ModelSelectorGenerator {
             return proxy;
           }`;
     }).join('');
-
-    return `
-      switch (prop) {${cases}
-      }
-    `;
   }
 
   get stringTreeType() {
