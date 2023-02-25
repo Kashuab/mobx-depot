@@ -67,8 +67,8 @@ ${indentString(nestedProxyGetters.join('\n'), 2)}
   }
 
   get primitiveFields() {
-    return this.model.modelType.fields
-      .filter(field => !referencesModel(field.type))
+    return this.model.modelType.fields // TODO: Opinionated 'id' field name
+      .filter(field => field.name !== 'id' && !referencesModel(field.type))
   }
 
   get proxyGenerator() {
