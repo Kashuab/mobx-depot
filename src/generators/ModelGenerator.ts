@@ -67,7 +67,7 @@ export class ModelGenerator {
   get imports() {
     return dedent`
       import { getRootStore } from '../rootStore';
-      import { assignInstanceProperties } from 'mobx-depot';
+      import { assignInstanceProperties, Selectable } from 'mobx-depot';
       ${this.scalarImports}
       ${this.modelImports}
     `;
@@ -118,10 +118,7 @@ export class ModelGenerator {
         const isNullable = typeIsNullable(field.type);
         if (isNullable) type += ' | null';
 
-        const definition = indentString(`private _${field.name}?: ${type};`, 2);
-        const accessor = this.accessorMethods(field.name, type);
-
-        return `${definition}\n${accessor}`;
+        return indentString(`@Selectable() ${field.name}!: ${type};`, 2);
       })
       .filter(Boolean)
 
@@ -131,17 +128,17 @@ export class ModelGenerator {
     ].join('\n');
   }
 
-  accessorMethods(fieldName: string, fieldType: string) {
-    return indentString(dedent`
-      get ${fieldName}(): ${fieldType} {
-        if (this._${fieldName} === undefined) throw new Error('Property ${fieldName} is not selected');
-        return this._${fieldName};
-      }
-      set ${fieldName}(value: ${fieldType}) {
-        this._${fieldName} = value;
-      }\n
-    `, 2);
-  }
+  // accessorMethods(fieldName: string, fieldType: string) {
+  //   return indentString(dedent`
+  //     get ${fieldName}(): ${fieldType} {
+  //       if (this._${fieldName} === undefined) throw new Error('Property ${fieldName} is not selected');
+  //       return this._${fieldName};
+  //     }
+  //     set ${fieldName}(value: ${fieldType}) {
+  //       this._${fieldName} = value;
+  //     }\n
+  //   `, 2);
+  // }
 
   get selectedDataGetter() {
     return indentString(dedent`
@@ -186,6 +183,14 @@ export class ModelGenerator {
         this[key] = value;
       }
     `, 2);
+  }
+
+  get ensureSelectedMethod() {
+    return indentString(dedent`
+      ensureSelected<K extends keyof this>(key: K): asserts this is this & { [k in K]: this[k] }
+        if (this[key] === undefined) throw new Error(\`Property \${key} is not selected\`);
+      }
+    `, 2).replace(/\\/g, '');
   }
 
   get baseModelCode() {
