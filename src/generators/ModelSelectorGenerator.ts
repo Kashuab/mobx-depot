@@ -54,14 +54,13 @@ export class ModelSelectorGenerator {
     let type =
 `export type ${typeName} = {
   [key in keyof Omit<${this.model.baseModelClassName}, ${omits.join(' | ')}>]: ${typeName}; 
-} ${nestedProxyGetters.length > 0 ? `& {
+} & {
   /**
     * Adds the following fields to the selection:
 ${indentString(this.primitiveFields.map(({ name, type }) => `* - \`${name}\`: \`${getTypeName(type)}\``).join('\n'), 4)}
     */
-  primitives: ${typeName};
-${indentString(nestedProxyGetters.join('\n'), 2)}
-}` : ''}`;
+  primitives: ${typeName};${nestedProxyGetters.length > 0 ? `\n${indentString(nestedProxyGetters.join('\n'), 2)}` : ''}
+}`;
 
     return type;
   }
