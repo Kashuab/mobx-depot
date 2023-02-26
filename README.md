@@ -19,13 +19,13 @@ Scaffold MobX-powered models, queries and mutations with your GraphQL schema.
 - `mst-gql`
 - ...
 
-Depending on the structure of your schema, you could also consider local state management as a target. Soon we'll be
-able to generate code from a `schema.graphql` file, of which you could generate models from without needing to 
-interact with an external API at all. In this case any local state management library should be shaking in their boots!
+Depending on the structure of your schema, you could also consider local state management as a target. You could
+theoretically generate models using a schema without needing to interact with an external API at all. In this case any
+local state management library should be shaking in their boots!
 
 - Redux
 - Zustand
-- 
+- The other 10,000+ libraries out there
 
 ## Expect trouble
 
@@ -43,11 +43,9 @@ my vision for the library is clear before I start accepting PRs. Though I'm tota
 As is common in early development, there are currently a slew of limitations that will be addressed in the future:
 
 - Only TypeScript supported
-- React utilities are always generated, this is planned to be optional
-- Must provide a URL for introspection, providing a `schema.graphql` file is not supported
-- Object types in your schema must include an `id: String!` field
 - GraphQL Subscriptions are not supported
 - Object types cannot include the following field names: `set`, `selectedData`, `assign`, and `store` (see [issue #22](https://github.com/Kashuab/mobx-depot/issues/22))
+- Cache management is not implemented
 - Probably more things that I'm not aware of yet
 
 # Getting started
@@ -71,6 +69,7 @@ Next, add enable experimental decorators to your `tsconfig.json`:
 ## Generate code
 
 - `yarn mobx-depot generate http://localhost:3000/graphql --outDir src/models`
+  - (You can also provide a path to a `schema.graphql` or `introspection.json` file)
 
 This will generate a `src/models` directory with the following structure:
 
@@ -91,6 +90,18 @@ This will generate a `src/models` directory with the following structure:
 - `XModel.ts` (You can edit these!)
 - `YModel.ts`
 - `ZModel.ts`
+
+### CLI options
+
+- `--include User,Post,Comment` Whitelist object types to be generated into models (Comma-separated values)
+- `--exclude UserMetadata,PostAnalytics` Blacklist object types from being generated into models (Comma-separated values)
+
+Only use one or the other, it doesn't make much sense to use both `--include` and `--exclude`.
+
+- `--react true|false` Include React utilities in generated output (defaults to true)
+- `--idFieldName` Name of the field used to identify object types (defaults to "id")
+
+You can reference these anytime in the CLI: `yarn mobx-depot --help generate`
 
 ## Setup your app root
 

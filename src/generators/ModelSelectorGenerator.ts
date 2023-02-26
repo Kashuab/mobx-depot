@@ -1,14 +1,23 @@
 import {getTypeName, ModelGenerator} from "./ModelGenerator";
 import {referencesModel} from "../makeIntrospectionQuery";
-import {pascalCase} from "change-case";
 import dedent from "dedent";
 import {indentString} from "../lib/indentString";
 
+type ModelSelectorGeneratorOpts = {
+  idFieldName: string;
+}
+
 export class ModelSelectorGenerator {
   model: ModelGenerator;
+  opts: ModelSelectorGeneratorOpts
 
-  constructor(model: ModelGenerator) {
+  constructor(model: ModelGenerator, opts: ModelSelectorGeneratorOpts) {
+    this.opts = opts;
     this.model = model;
+  }
+
+  get idFieldName() {
+    return this.opts.idFieldName;
   }
 
   get modelNestedObjectFields() {
@@ -41,8 +50,7 @@ export class ModelSelectorGenerator {
       "'store'",
     ]
 
-    // TODO: Opinionated ID field name
-    if (this.model.hasIdField) omits.push("'id'");
+    if (this.model.hasIdField) omits.push(`'${this.idFieldName}'`);
 
     // This makes me want to gouge my eyes out! :^)
     let type =
@@ -60,8 +68,8 @@ ${indentString(this.primitiveFields.map(({ name, type }) => `* - \`${name}\`: \`
   }
 
   get primitiveFields() {
-    return this.model.modelType.fields // TODO: Opinionated 'id' field name
-      .filter(field => field.name !== 'id' && !referencesModel(field.type))
+    return this.model.modelType.fields
+      .filter(field => field.name !== this.idFieldName && !referencesModel(field.type))
   }
 
   get proxyGenerator() {
@@ -69,14 +77,13 @@ ${indentString(this.primitiveFields.map(({ name, type }) => `* - \`${name}\`: \`
     const typeName = `${this.model.modelType.name}SelectorProxy`;
     const selectionBuilderTypeName = `${this.model.modelType.name}SelectionBuilder`;
 
-    // TODO: Opinionated 'id' field name
     return dedent`
       const primitiveKeys = [${this.primitiveFields.map(f => `"${f.name}"`).join(', ')}];
       
       export type ${selectionBuilderTypeName} = (proxy: ${typeName}) => ${typeName};
       
       export function selectFrom${this.model.modelType.name}(build: ${selectionBuilderTypeName}) {
-        const selectedKeys: StringTree = ['__typename'${this.model.hasIdField ? ", 'id'" : ''}];
+        const selectedKeys: StringTree = ['__typename'${this.model.hasIdField ? `, '${this.idFieldName}'` : ''}];
         
         const proxy: ${typeName} = new Proxy({}, {
           get(target, prop) {

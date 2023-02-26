@@ -1,17 +1,19 @@
 import {RootStore} from "../RootStore";
 import {PostModel} from "./lib/PostModel";
 import {UserModel} from "./lib/UserModel";
+import {OtherIdPostModel} from "./lib/OtherIdPostModel";
+import {OtherIdUserModel} from "./lib/OtherIdUserModel";
 
-const createStore = () => new RootStore(() => ({
+const createStore = <ID extends string>(idFieldName: ID) => new RootStore(() => ({
   User: UserModel,
   Post: PostModel,
-}));
+}), { idFieldName });
 
 describe('RootStore', () => {
-  let store = createStore();
+  let store = createStore('id');
 
   beforeEach(() => {
-    store = createStore();
+    store = createStore('id');
   });
 
   it('can resolve a simple model', () => {
@@ -167,5 +169,47 @@ describe('RootStore', () => {
     expect(user.name).toBe('Bing bong');
     expect(user.metadata.lastOnlineAt).toBe('now');
     expect(user.metadata.postCount).toBe(0);
+  });
+
+  it('can handle different ID field names', () => {
+    const otherIdStore = new RootStore(() => ({
+      OtherIdUserModel,
+      OtherIdPostModel,
+    }), { idFieldName: 'otherId' });
+
+    const user = otherIdStore.resolve({
+      __typename: 'OtherIdUserModel',
+      otherId: '1',
+      name: 'John',
+    });
+
+    const postOneData = {
+      __typename: 'OtherIdPostModel',
+      otherId: '1',
+      title: 'Hello world',
+    } as const;
+
+    const postTwoData = {
+      __typename: 'OtherIdPostModel',
+      otherId: '2',
+      title: 'Hello world 2',
+    } as const;
+
+    const post = otherIdStore.resolve(postOneData);
+    const secondPost = otherIdStore.resolve(postTwoData);
+
+    const updatedUser = otherIdStore.resolve({
+      __typename: 'OtherIdUserModel',
+      otherId: '1',
+      name: 'John (updated)',
+      posts: [
+        postOneData,
+        postTwoData,
+      ],
+    } as const);
+
+    expect(updatedUser).toBe(user);
+    expect(updatedUser.posts[0]).toBe(post);
+    expect(updatedUser.posts[1]).toBe(secondPost);
   })
 });

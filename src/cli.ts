@@ -4,22 +4,34 @@ import {hideBin} from "yargs/helpers";
 import {generate} from "./generate";
 
 yargs(hideBin(process.argv))
-  .command('generate <url>', 'Generate models based on an introspection of the provided URL', build => build.string('url').string('outDir'), (argv) => {
-    const { url, outDir = 'src/models' } = argv;
-    if (!url) throw new Error('URL must be provided');
+  .command(
+    'generate <url>',
+    'Generate models based on an introspection of the provided schema',
+    build => (
+      build
+        .string('url').describe('url', 'Schema source. Can be a URL to introspect, a path to a schema.graphql file, or an already compiled introspection.json')
+        .string('outDir').describe('outDir', 'Directory of which to write output to (defaults to src/models)')
+        .string('include').describe('include', 'Gatekeep which object types get generated into models (Comma-separated values)')
+        .string('exclude').describe('exclude', 'Exclude certain object types from being generated into models (Comma-separated values)')
+        .boolean('react').describe('react', 'Include React utilities in generated output (defaults to true)')
+        .string('idFieldName').describe('idFieldName', 'Name of the field used to identify object types (defaults to "id")')
+    ),
+    (argv) => {
+      const { url, outDir = 'src/models', include, exclude, react = true, idFieldName = 'id' } = argv;
+      if (!url) throw new Error('URL must be provided');
 
-    console.log('Making introspection query to', url);
-    console.log('Writing models to', outDir)
+      console.log('Making introspection query to', url);
+      console.log('Writing models to', outDir)
 
-    if (typeof outDir !== 'string') {
-      console.error('--outDir must be a string');
-      process.exit(1);
+      generate({
+        url,
+        outDir,
+        include: include ? include.split(',') : null,
+        exclude: exclude ? exclude.split(',') : null,
+        writeReactUtilities: react,
+        idFieldName,
+      });
     }
-
-    generate({
-      url,
-      outDir
-    });
-  })
+  )
   .demandCommand(1)
   .parse()

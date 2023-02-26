@@ -1,11 +1,21 @@
 import {ModelGenerator} from "./ModelGenerator";
 import {indentString} from "../lib/indentString";
 
+type RootStoreGeneratorOpts = {
+  idFieldName: string;
+}
+
 export class RootStoreGenerator {
   models: ModelGenerator[] = [];
+  opts: RootStoreGeneratorOpts;
 
-  constructor(models: ModelGenerator[]) {
+  constructor(models: ModelGenerator[], opts: RootStoreGeneratorOpts) {
+    this.opts = opts;
     this.models = models;
+  }
+
+  get idFieldName() {
+    return this.opts.idFieldName;
   }
 
   fileName = "rootStore.ts";
@@ -36,7 +46,7 @@ ${indentString(this.rootStoreModels, 2)}
 
 export type RootStoreModel = ReturnType<typeof getModels>[keyof ReturnType<typeof getModels>];
 
-const rootStore = new RootStore(getModels);
+const rootStore = new RootStore(getModels, { idFieldName: "${this.idFieldName}" });
 
 let graphqlClient: GraphQLClient | null = null;
 

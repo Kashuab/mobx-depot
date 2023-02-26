@@ -5,18 +5,28 @@ import {referencesModel} from "../makeIntrospectionQuery";
 import {isScalarType, scalarIsPrimitive} from "../generate";
 import {ModelSelectorGenerator} from "./ModelSelectorGenerator";
 
+type ModelGeneratorOpts = {
+  idFieldName: string;
+}
+
 export class ModelGenerator {
   modelType: IntrospectionObjectType;
   selectorGenerator: ModelSelectorGenerator;
 
-  constructor(modelType: IntrospectionObjectType) {
+  opts: ModelGeneratorOpts;
+
+  constructor(modelType: IntrospectionObjectType, opts: ModelGeneratorOpts) {
+    this.opts = opts;
     this.modelType = modelType;
-    this.selectorGenerator = new ModelSelectorGenerator(this);
+    this.selectorGenerator = new ModelSelectorGenerator(this, opts);
+  }
+
+  get idFieldName() {
+    return this.opts.idFieldName;
   }
 
   get hasIdField() {
-    // TODO: Opinionated 'id' field name
-    return this.modelType.fields.some(field => field.name === 'id');
+    return this.modelType.fields.some(field => field.name === this.idFieldName);
   }
 
   get baseModelFileName() {

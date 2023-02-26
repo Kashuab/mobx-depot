@@ -1,34 +1,47 @@
 type KeyOf<T extends object> = Extract<keyof T, string>;
 
-interface IModel {
-  new (...args: any[]): ({
-    id?: string;
-  } | {}) & {
-    assign: (data: any) => void;
-  };
+type IdentifiableModelInstance<IDFieldName extends string> = {
+  [key in IDFieldName]?: string;
+} 
+
+type ModelInstanceUtilities = {
+  assign: (data: any) => void;
 }
 
-type Resolvable<Typename extends string> = {
+type ModelInstance<IDFieldName extends string> = (IdentifiableModelInstance<IDFieldName> | {}) & ModelInstanceUtilities;
+
+type Model<IDFieldName extends string> = {
+  new (...args: any): ModelInstance<IDFieldName>
+}
+
+type Resolvable<Typename extends string, IDFieldName extends string> = {
   __typename: Typename;
-  id: string;
+} & {
+  [key in IDFieldName]: string;
 }
 
-type DeepResolved<Models extends RootStoreModels, ModelName extends KeyOf<Models>, Data extends object> =
-  Data extends Resolvable<ModelName>
+type DeepResolved<IDFieldName extends string, Models extends RootStoreModels<IDFieldName>, ModelName extends KeyOf<Models>, Data extends object> =
+  Data extends Resolvable<ModelName, IDFieldName>
     ? InstanceType<Models[Data['__typename']]>
     : {
         [key in keyof Data]:
-          Data[key] extends Resolvable<ModelName>
+          Data[key] extends Resolvable<ModelName, IDFieldName>
             ? InstanceType<Models[Data[key]['__typename']]>
             : Data[key] extends object
-              ? DeepResolved<Models, ModelName, Data[key]>
+              ? DeepResolved<IDFieldName, Models, ModelName, Data[key]>
               : Data[key]
       }
 
-export type RootStoreModels = { readonly [key: string]: IModel };
+export type RootStoreModels<IDFieldName extends string> = { readonly [key: string]: Model<IDFieldName> };
 
-export class RootStore<Models extends RootStoreModels, ModelName extends KeyOf<Models>> {
-  private instances: Record<string, Record<string, InstanceType<IModel>>> = {};
+type RootStoreOpts<IDFieldName extends string> = {
+  idFieldName: IDFieldName;
+}
+
+export class RootStore<IDFieldName extends string, Models extends RootStoreModels<IDFieldName>, ModelName extends KeyOf<Models>> {
+  private opts: RootStoreOpts<IDFieldName>;
+
+  private instances: Record<string, Record<string, InstanceType<Models[ModelName]>>> = {};
 
   private _models: Models | null = null;
   private readonly generateModels: () => Models;
@@ -39,12 +52,17 @@ export class RootStore<Models extends RootStoreModels, ModelName extends KeyOf<M
   /**
    * @param models A map of `{ "__typename": ModelClass }` for all resolvable types
    */
-  constructor(models: () => Models) {
+  constructor(models: () => Models, opts: RootStoreOpts<IDFieldName>) {
     this.generateModels = models;
+    this.opts = opts;
+  }
+
+  get idFieldName() {
+    return this.opts.idFieldName;
   }
 
   // TODO: __typename gets in the instances
-  public resolve<D extends object>(data: D): DeepResolved<Models, ModelName, D> {
+  public resolve<D extends object>(data: D): DeepResolved<IDFieldName, Models, ModelName, D> {
     const resolvedData = Object.entries(data).reduce((resolved, [key, value]) => {
       if (value && typeof value === 'object') {
         if (Array.isArray(value)) {
@@ -142,11 +160,20 @@ export class RootStore<Models extends RootStoreModels, ModelName extends KeyOf<M
     this.deepReplace(target, source);
   }
 
-  private getInstanceId(instance: InstanceType<Models[ModelName]>): string | null {
-    try {
-      if (!('id' in instance) || !instance.id) return null;
+  private instanceIsIdentifiable(
+    instance: ModelInstance<IDFieldName>
+  ): instance is (typeof instance & IdentifiableModelInstance<IDFieldName>) {
+    return this.idFieldName in instance;
+  }
 
-      return instance.id;
+  private getInstanceId(instance: ModelInstance<IDFieldName>): string | null {
+    try {
+      if (!this.instanceIsIdentifiable(instance)) return null;
+
+      const id = instance[this.idFieldName];
+      if (!id) return null;
+
+      return id;
     } catch (err) {
       // TODO: Check for SelectionError, remove console.error
       console.error(err);
@@ -216,7 +243,7 @@ export class RootStore<Models extends RootStoreModels, ModelName extends KeyOf<M
     store[id] = instance;
   }
   
-  private getInstanceStore<T extends Models[string]>(Model: T) {
+  private getInstanceStore<T extends Models[ModelName]>(Model: T) {
     const store = this.instances[Model.name];
     if (!store) {
       this.instances[Model.name] = {};
@@ -232,7 +259,7 @@ export class RootStore<Models extends RootStoreModels, ModelName extends KeyOf<M
     return model;
   }
 
-  private isResolvable(data: object): data is Resolvable<ModelName> {
+  private isResolvable(data: object): data is Resolvable<ModelName, IDFieldName> {
     if (!('__typename' in data)) return false;
     return !(typeof data.__typename !== 'string' || !(data.__typename in this.models));
   }
