@@ -1,4 +1,4 @@
-import {isModelType, makeIntrospectionQuery} from "./makeIntrospectionQuery";
+import {introspectSchema, isModelType, makeIntrospectionQuery} from "./makeIntrospectionQuery";
 import {getTypeName, ModelGenerator} from "./generators/ModelGenerator";
 import {
   IntrospectionInputObjectType,
@@ -8,7 +8,7 @@ import {
   IntrospectionScalarType,
   IntrospectionType
 } from "graphql/utilities";
-import fs from 'fs';
+import fs, {readFileSync} from 'fs';
 import {ScalarGenerator} from "./generators/ScalarGenerator";
 import {MutationGenerator} from "./generators/MutationGenerator";
 import {InputObjectInterfaceGenerator} from "./generators/InputObjectInterfaceGenerator";
@@ -25,18 +25,28 @@ type GenerateOpts = {
 export async function generate(opts: GenerateOpts) {
   const { url, outDir } = opts;
   
-  const query = await makeIntrospectionQuery(url);
+  const introspection = await (async () => {
+    if (url.startsWith('http')) {
+      return await makeIntrospectionQuery(url);
+    } else if (url.endsWith('.graphql')) {
+      return await introspectSchema(url);
+    } else if (url.endsWith('.json')) {
+      return JSON.parse(readFileSync(url, 'utf-8')) as IntrospectionQuery;
+    } else {
+      throw new Error(`Unsupported source: ${url}`);
+    }
+  })();
 
-  // fs.writeFileSync('introspection.json', JSON.stringify(query, null, 2));
+  console.log(introspection)
 
-  generateScalars(query);
+  generateScalars(introspection);
 
-  const models = generateModels(query);
+  const models = generateModels(introspection);
   generateRootStore(models);
 
-  generateInputObjectInterfaces(query);
-  generateMutations(query);
-  generateQueries(query);
+  generateInputObjectInterfaces(introspection);
+  generateMutations(introspection);
+  generateQueries(introspection);
   generateHooks();
 
   function withDontEditWarning(code: string) {

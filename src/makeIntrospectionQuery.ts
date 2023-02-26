@@ -1,6 +1,20 @@
 import {request} from 'graphql-request';
-import {getIntrospectionQuery, IntrospectionQuery, IntrospectionType} from "graphql/utilities";
+import {buildSchema, getIntrospectionQuery, IntrospectionQuery, IntrospectionType} from "graphql/utilities";
 import {IntrospectionObjectType} from "graphql/utilities/getIntrospectionQuery";
+import {readFileSync} from "fs";
+import {graphql} from "graphql/graphql";
+
+export async function introspectSchema(filePath: string) {
+  const schemaText = readFileSync(filePath, 'utf-8');
+  const schema = buildSchema(schemaText);
+  const query = await graphql({ schema, source: getIntrospectionQuery() });
+
+  if (!('data' in query)) {
+    throw new Error(`Failed to introspect ${filePath}`);
+  }
+
+  return query.data as unknown as IntrospectionQuery;
+}
 
 export async function makeIntrospectionQuery(url: string) {
   const data: IntrospectionQuery = await request(url, getIntrospectionQuery());

@@ -5,6 +5,28 @@ Scaffold MobX-powered models, queries and mutations with your GraphQL schema.
 - [NPM](https://www.npmjs.com/package/mobx-depot) ![npm version](https://badgen.net/npm/v/mobx-depot)
 - [Bundlephobia](https://bundlephobia.com/package/mobx-depot) ![gzip size](https://badgen.net/bundlephobia/minzip/mobx-depot) ![tree shaking](https://badgen.net/bundlephobia/tree-shaking/mobx-depot)
 
+## What do you get?
+
+- Strictly-typed `Model`, `Query` and `Mutation` classes auto-generated via introspection
+- A `RootStore` to reconcile data from your API, preserving existing instances along the way
+- A place to add your own logic to models that won't get overwritten by code generation
+- Reactivity powered by [MobX](https://mobx.js.org/)
+- A UI framework-agnostic solution, though first-class support for React is provided via hooks
+
+### Which libraries is `mobx-depot` adjacent to?
+
+- Apollo client
+- `mst-gql`
+- ...
+
+Depending on the structure of your schema, you could also consider local state management as a target. Soon we'll be
+able to generate code from a `schema.graphql` file, of which you could generate models from without needing to 
+interact with an external API at all. In this case any local state management library should be shaking in their boots!
+
+- Redux
+- Zustand
+- 
+
 ## Expect trouble
 
 Until this library is published on NPM with version `>=0.1.0`, expect trouble. There are many "pre-release" issues
@@ -20,7 +42,8 @@ my vision for the library is clear before I start accepting PRs. Though I'm tota
 
 As is common in early development, there are currently a slew of limitations that will be addressed in the future:
 
-- Only React & TypeScript supported
+- Only TypeScript supported
+- React utilities are always generated, this is planned to be optional
 - Must provide a URL for introspection, providing a `schema.graphql` file is not supported
 - Object types in your schema must include an `id: String!` field
 - GraphQL Subscriptions are not supported
@@ -153,8 +176,6 @@ export class TodoModel extends TodoBaseModel {
   }
 }
 ```
-
-Woohoo!
 
 ## Querying data with `useQuery`
 
