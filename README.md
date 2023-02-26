@@ -16,7 +16,16 @@ If you're interested in contributing, hit me up on [Twitter](https://twitter.com
 I won't have any formal guidelines for contributing until after the first release, as I want to ensure
 my vision for the library is clear before I start accepting PRs. Though I'm totally up to review some PRs for bug fixes!
 
-**We only support React and TypeScript at this time.**
+## Limitations
+
+As is common in early development, there are currently a slew of limitations that will be addressed in the future:
+
+- Only React & TypeScript supported
+- Must provide a URL for introspection, providing a `schema.graphql` file is not supported
+- Object types in your schema must include an `id: String!` field
+- GraphQL Subscriptions are not supported
+- Object types cannot include the following field names: `set`, `selectedData`, `assign`, and `store` (see [issue #22](https://github.com/Kashuab/mobx-depot/issues/22))
+- Probably more things that I'm not aware of yet
 
 # Getting started
 
@@ -247,36 +256,72 @@ hook, some instance method elsewhere.)
 
 ## Selecting "primitives"
 
-It's common to select all the fields from a type that don't reference another model. For example, given this `User`:
+It's common to select all the fields from a type that don't reference another model. For example, given this schema:
 
 ```graphql
+type Todo {
+  id: ID!
+  title: String!
+  content: String!
+  completedAt: String
+  dueBy: String!
+  user: User!
+  createdAt: String!
+  updatedAt: String!
+}
+
 type User {
   id: ID!
   name: String!
   email: String!
-  posts: [Post!]!
-}
-
-type Post {
-  id: ID!
-  title: String!
-  content: String!
 }
 ```
 
-You can select `name` and `email` by adding `primitives` to your selection builder:
+You can select `title`, `content`, `completedAt`, `dueBy`, `createdAt` and `updatedAt` all by adding `primitives` to
+your selection builder:
 
 ```tsx
-new UsersQuery(user => user.primitives);
+export class TodoModel extends TodoBaseModel {
+  static findAll() {
+    return new TodosQuery(todo => todo.primitives);
+  }
+  
+  // ... other methods
+}
 ```
 
 This also works with nested types, of course:
 
 ```tsx
-new UsersQuery(user => user.primitives.posts(post => post.primitives));
+export class TodoModel extends TodoBaseModel {
+  static findAll() {
+    return new TodosQuery(todo => todo.primitives.user(user => user.primitives));
+  }
+  
+  // ... other methods
+}
 ```
 
 If you're using a supported IDE, you can hover over `primitives` to see the fields it will add to your query.
+
+### Beware of using `primitives` outside of components
+
+When all your models always select `primitives` from their queries, you can end up over-saturating your views with data.
+If you want to optimize this and provide your components with a way to only select the data they need, you can offer an
+optional argument to manually provide a selection builder:
+
+```tsx
+import { TodoSelectionBuilder } from './depot/base/TodoBaseModel';
+
+export class TodoModel extends TodoBaseModel {
+  static findAll(select: TodoSelectionBuilder = todo => todo.primitives) {
+    return new TodosQuery(select);
+  }
+  
+  // ... other methods
+}
+```
+
 
 ## Mutations with `useMutation`
 
