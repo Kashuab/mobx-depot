@@ -111,7 +111,7 @@ ${indentString(this.primitiveFields.map(({ name, type }) => `* - \`${name}\`: \`
       return `
         case '${name}':
           return (build: (proxy: ${selectorProxyName}) => ${selectorProxyName}) => {
-            selectedKeys.push(selectFrom${fieldModelName}(build));
+            selectedKeys.push(prop as string, selectFrom${fieldModelName}(build));
             return proxy;
           }`;
     }).join('');
