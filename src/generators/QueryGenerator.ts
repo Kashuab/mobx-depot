@@ -116,6 +116,7 @@ export class QueryGenerator {
         this.hasArgs && `args: ${this.argumentsTypeName};`,
         'selection: string;',
         'loading = false;',
+        'error: Error | null = null;',
         `data: ${this.dataTypeName} | null = null;`,
         `queryPromise: Promise<${this.dataTypeName}> | null = null;`,
       ].filter(Boolean).join('\n'),
@@ -194,6 +195,14 @@ export class QueryGenerator {
     `, 2);
   }
 
+  get setErrorMethod() {
+    return indentString(dedent`
+      setError(error: Error | null) {
+        this.error = error;
+      }
+    `, 2);
+  }
+
   get payloadModelName() {
     return `${this.fieldTypeName}Model`;
   }
@@ -213,17 +222,14 @@ export class QueryGenerator {
 
   get queryMethod() {
     return indentString(dedent`
-      async query() {
-        // TODO: Cancel current query if exists
+      async query() {    
+        this.setError(null);
+        this.setLoading(true);    
+        
         const promise = (async () => {
-          this.setLoading(true);
-          
-          // TODO: __client.request generic? data is any...
           const data = await this.__client.request(this.document${this.hasArgs ? ', this.args' : ''});
           const resolvedData = this.__rootStore.resolve(data) as ${this.dataTypeName};
           
-          this.setQueryPromise(null);
-          this.setLoading(false);
           this.setData(resolvedData);
           
           return resolvedData;
@@ -231,7 +237,18 @@ export class QueryGenerator {
         
         this.setQueryPromise(promise);
         
-        return await promise;
+        let result: ${this.dataTypeName} | null = null;
+        
+        try {
+          result = await promise;
+        } catch (err) {
+          console.error(err);
+          this.setError(err instanceof Error ? err : new Error(err as string));
+        }
+        
+        this.setLoading(false);
+        
+        return result;
       }
     `, 2);
   }
@@ -253,6 +270,7 @@ export class QueryGenerator {
       this.hasArgs && this.setArgsMethod,
       this.setDataMethod,
       this.setQueryPromiseMethod,
+      this.setErrorMethod,
       this.queryMethod,
       this.footer
     ].filter(Boolean);

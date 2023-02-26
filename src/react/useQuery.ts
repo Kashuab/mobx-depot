@@ -4,6 +4,7 @@ import {useEffect, useState} from "react";
 interface IQuery {
   data: unknown;
   loading: boolean;
+  error: Error | null;
   queryPromise: Promise<unknown> | null;
   query: () => Promise<unknown>;
 }
@@ -47,6 +48,7 @@ export function useQuery<Query extends IQuery, Data extends Exclude<Query['data'
     // TODO: Better types
     data: (query?.data || null) as Data | null,
     loading: query?.loading || false,
+    error: query?.error || null,
     query,
   }
 }

@@ -3,6 +3,7 @@ import {useState} from "react";
 // TODO: Better types
 interface IMutation {
   data: unknown;
+  error: Error | null;
   loading: boolean;
   mutatePromise: Promise<unknown> | null;
   mutate: () => Promise<unknown>;
@@ -51,6 +52,7 @@ export function useMutation<Mutation extends IMutation, Data extends Exclude<Mut
     // TODO: Better types
     data: (mutation?.data || null) as Data | null,
     loading: mutation?.loading || false,
+    error: mutation?.error || null,
     mutation,
   }
 }

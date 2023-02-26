@@ -126,6 +126,7 @@ export class MutationGenerator {
         '__client = getGraphQLClient();',
         this.hasArgs && `args: ${this.argumentsTypeName};`,
         'selection: string;',
+        'error: Error | null = null;',
         'loading = false;',
         `data: ${this.dataTypeName} | null = null;`,
         `mutatePromise: Promise<${this.dataTypeName}> | null = null;`,
@@ -205,19 +206,24 @@ export class MutationGenerator {
     `, 2);
   }
 
+  get setErrorMethod() {
+    return indentString(dedent`
+      setError(error: Error | null) {
+        this.error = error;
+      }
+    `, 2);
+  }
+
   get mutateMethod() {
     return indentString(dedent`
-      async mutate() {
-        // TODO: Cancel current mutation if exists
+      async mutate() {    
+        this.setError(null);
+        this.setLoading(true);    
+        
         const promise = (async () => {
-          this.setLoading(true);
-          
-          // TODO: __client.request generic? data is any...
           const data = await this.__client.request(this.document${this.hasArgs ? ', this.args' : ''});
           const resolvedData = this.__rootStore.resolve(data) as ${this.dataTypeName};
           
-          this.setMutatePromise(null);
-          this.setLoading(false);
           this.setData(resolvedData);
           
           return resolvedData;
@@ -225,7 +231,18 @@ export class MutationGenerator {
         
         this.setMutatePromise(promise);
         
-        return await promise;
+        let result: ${this.dataTypeName} | null = null;
+        
+        try {
+          result = await promise;
+        } catch (err) {
+          console.error(err);
+          this.setError(err instanceof Error ? err : new Error(err as string));
+        }
+        
+        this.setLoading(false);
+        
+        return result;
       }
     `, 2);
   }
@@ -247,6 +264,7 @@ export class MutationGenerator {
       this.setLoadingMethod,
       this.setDataMethod,
       this.setMutatePromiseMethod,
+      this.setErrorMethod,
       this.mutateMethod,
       this.footer
     ];
