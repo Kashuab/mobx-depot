@@ -8,34 +8,6 @@ import dedent from "dedent";
 import {indentString} from "../lib/indentString";
 import {isScalarType, scalarIsPrimitive} from "../generate";
 
-/*
-  "name": "createBattle",
-  "description": null,
-  "type": {
-    "kind": "OBJECT",
-    "name": "CreateBattlePayload",
-    "ofType": null
-  },
-  "isDeprecated": false,
-  "deprecationReason": null,
-  "args": [
-    {
-      "name": "input",
-      "description": "Parameters for CreateBattle",
-      "type": {
-        "kind": "NON_NULL",
-        "name": null,
-        "ofType": {
-          "kind": "INPUT_OBJECT",
-          "name": "CreateBattleInput",
-          "ofType": null
-        }
-      },
-      "defaultValue": null
-    }
-  ]
- */
-
 export class MutationGenerator {
   field: IntrospectionField;
 
@@ -71,16 +43,16 @@ export class MutationGenerator {
     return `${this.fieldTypeName}Model`;
   }
 
-  get baseModelName() {
-    return `${this.fieldTypeName}BaseModel`;
+  get payloadSelectorName() {
+    return `selectFrom${this.fieldTypeName}`;
   }
 
-  get payloadSelectorName() {
-    return `selectFrom${this.baseModelName}`;
+  get selectionBuilderType() {
+    return `${this.fieldTypeName}SelectionBuilder`;
   }
 
   get payloadSelectorImport() {
-    return `import { ${this.payloadSelectorName} } from '../base/${this.baseModelName}';`;
+    return `import { ${this.payloadSelectorName}, ${this.selectionBuilderType} } from '../base/${this.fieldTypeName}BaseModel';`;
   }
 
   get imports() {
@@ -137,7 +109,7 @@ export class MutationGenerator {
   get constructorFunction() {
     return indentString(
       [
-        `constructor(${this.hasArgs ? `args: ${this.argumentsTypeName}, ` : ''}select: Parameters<typeof ${this.payloadSelectorName}>[0]) {`,
+        `constructor(${this.hasArgs ? `args: ${this.argumentsTypeName}, ` : ''}select: ${this.selectionBuilderType}) {`,
         this.hasArgs && indentString('this.args = args;', 2),
         indentString(`this.selection = buildSelection(${this.payloadSelectorName}(select));`, 2),
         indentString("makeAutoObservable(this);", 2),

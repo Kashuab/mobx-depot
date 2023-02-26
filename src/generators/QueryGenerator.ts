@@ -34,6 +34,10 @@ export class QueryGenerator {
     return imports;
   }
 
+  get payloadSelectorImport() {
+    return `import { ${this.payloadSelectorName}, ${this.selectionBuilderType} } from '../base/${this.fieldTypeName}BaseModel';`;
+  }
+
   get imports() {
     return [
       "import { makeAutoObservable } from 'mobx';",
@@ -41,7 +45,7 @@ export class QueryGenerator {
       "import { buildSelection } from 'mobx-depot';",
       "import { getGraphQLClient, getRootStore } from '../rootStore';",
       `import { ${this.payloadModelName} } from '../../${this.payloadModelName}';`,
-      `import { ${this.payloadSelectorName} } from '../base/${this.baseModelName}';`,
+      this.payloadSelectorImport,
       ...this.queryArgumentImports,
     ].join('\n');
   }
@@ -83,18 +87,18 @@ export class QueryGenerator {
     return getTypeName(this.field.type, { normalizeName: true, stripArrayType: true });
   }
 
-  get baseModelName() {
-    return `${this.fieldTypeName}BaseModel`;
+  get payloadSelectorName() {
+    return `selectFrom${this.fieldTypeName}`;
   }
 
-  get payloadSelectorName() {
-    return `selectFrom${this.baseModelName}`;
+  get selectionBuilderType() {
+    return `${this.fieldTypeName}SelectionBuilder`;
   }
 
   get constructorFunction() {
     return indentString(
       [
-        `constructor(${this.hasArgs ? `args: ${this.argumentsTypeName}, ` : ''}select: Parameters<typeof ${this.payloadSelectorName}>[0]) {`,
+        `constructor(${this.hasArgs ? `args: ${this.argumentsTypeName}, ` : ''}select: ${this.selectionBuilderType}) {`,
         this.hasArgs && indentString("this.args = args;", 2),
         indentString(`this.selection = buildSelection(${this.payloadSelectorName}(select));`, 2),
         indentString("makeAutoObservable(this);", 2),

@@ -16,17 +16,10 @@ export class ModelSelectorGenerator {
       .filter(field => referencesModel(field.type))
   }
 
-  get proxyTypeImports() {
-    return this.modelNestedObjectFields.map(({ type }) => {
-      const className = pascalCase(this.model.className(getTypeName(type, { normalizeName: true, stripArrayType: true }), true));
-      return `import { ${className}SelectorProxy } from "./${className}"`
-    }).join('\n');
-  }
-
   get selectorFunctionImports() {
     return this.modelNestedObjectFields.map(({ type }) => {
-      const className = pascalCase(this.model.className(getTypeName(type, { normalizeName: true, stripArrayType: true }), true));
-      return `import { selectFrom${className} } from "./${className}"`
+      const modelName = getTypeName(type, { normalizeName: true, stripArrayType: true });
+      return `import { selectFrom${modelName}, ${modelName}SelectionBuilder } from "./${modelName}BaseModel"`
     }).join('\n');
   }
 
@@ -35,9 +28,9 @@ export class ModelSelectorGenerator {
   }
 
   get proxyType() {
-    const typeName = `${this.model.baseModelClassName}SelectorProxy`;
+    const typeName = `${this.model.modelType.name}SelectorProxy`;
     const nestedProxyGetters = this.modelNestedObjectFields.map(({ name, type }) =>
-      `${name}: (cb: (proxy: ${pascalCase(this.model.className(getTypeName(type), true))}SelectorProxy) => unknown) => ${typeName};`
+      `${name}: (builder: ${getTypeName(type, { normalizeName: true, stripArrayType: true })}SelectionBuilder) => ${typeName};`
     )
 
     const omits = [
@@ -51,6 +44,7 @@ export class ModelSelectorGenerator {
     // TODO: Opinionated ID field name
     if (this.model.hasIdField) omits.push("'id'");
 
+    // This makes me want to gouge my eyes out! :^)
     let type =
 `export type ${typeName} = {
   [key in keyof Omit<${this.model.baseModelClassName}, ${omits.join(' | ')}>]: ${typeName}; 
@@ -72,16 +66,19 @@ ${indentString(this.primitiveFields.map(({ name, type }) => `* - \`${name}\`: \`
 
   get proxyGenerator() {
     // TODO: DRY
-    const typeName = `${this.model.baseModelClassName}SelectorProxy`;
+    const typeName = `${this.model.modelType.name}SelectorProxy`;
+    const selectionBuilderTypeName = `${this.model.modelType.name}SelectionBuilder`;
 
     // TODO: Opinionated 'id' field name
     return dedent`
       const primitiveKeys = [${this.primitiveFields.map(f => `"${f.name}"`).join(', ')}];
       
-      export function selectFrom${this.model.baseModelClassName}(build: (proxy: ${typeName}) => ${typeName}) {
+      export type ${selectionBuilderTypeName} = (proxy: ${typeName}) => ${typeName};
+      
+      export function selectFrom${this.model.modelType.name}(build: ${selectionBuilderTypeName}) {
         const selectedKeys: StringTree = ['__typename'${this.model.hasIdField ? ", 'id'" : ''}];
         
-        const proxy: ${typeName} = new Proxy(new ${this.model.baseModelClassName}({}), {
+        const proxy: ${typeName} = new Proxy({}, {
           get(target, prop) {
             switch (prop) {${this.hasNestedObjects ? `\n${indentString(this.proxyGeneratorNestedObjectSwitchCases, 6)}` : ''}
               case 'primitives':
@@ -105,12 +102,11 @@ ${indentString(this.primitiveFields.map(({ name, type }) => `* - \`${name}\`: \`
 
   get proxyGeneratorNestedObjectSwitchCases() {
     return this.modelNestedObjectFields.map(({ name, type }) => {
-      const fieldModelName = pascalCase(this.model.className(getTypeName(type), true));
-      const selectorProxyName = `${fieldModelName}SelectorProxy`;
+      const fieldModelName = getTypeName(type, { stripArrayType: true, normalizeName: true });
 
       return `
         case '${name}':
-          return (build: (proxy: ${selectorProxyName}) => ${selectorProxyName}) => {
+          return (build: ${fieldModelName}SelectionBuilder) => {
             selectedKeys.push(prop as string, selectFrom${fieldModelName}(build));
             return proxy;
           }`;
@@ -126,7 +122,6 @@ ${indentString(this.primitiveFields.map(({ name, type }) => `* - \`${name}\`: \`
   get code() {
     const segments = [
       this.selectorFunctionImports,
-      this.proxyTypeImports,
       this.proxyType,
       this.stringTreeType,
       this.proxyGenerator,
