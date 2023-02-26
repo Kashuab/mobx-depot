@@ -25,7 +25,8 @@
   "scripts": {
     "build": "yarn build-cli; yarn build-client;",
     "build-client": "microbundle --no-compress --entry src/index.ts --format cjs,esm --target web --external mobx,graphql,graphql-request,react",
-    "build-cli": "microbundle --entry src/cli.ts --output dist/cli.js --format cjs --target node --external graphql-request"
+    "build-cli": "microbundle --entry src/cli.ts --output dist/cli.js --format cjs --target node --external graphql-request",
+    "test": "jest"
   },
   "peerDependencies": {
     "graphql": "16",

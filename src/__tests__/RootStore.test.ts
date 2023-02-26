@@ -125,6 +125,7 @@ describe('RootStore', () => {
     const originalPost = resolvedUser.posts[0];
     const newPost = new PostModel({ id: '__localModel', title: 'Woah!' });
 
+    newPost.assign(originalPost);
     store.replace(originalPost, newPost);
 
     expect(resolvedUser.posts[0]).toBe(newPost);

@@ -132,8 +132,11 @@ export class RootStore<Models extends RootStoreModels, ModelName extends KeyOf<M
       throw new Error(`Model not recognized: ${(TargetModel as any).name}`);
     }
 
-    const store = this.getInstanceStore(TargetModel);
-    store[targetId] = source;
+    const sourceId = this.getInstanceId(source);
+
+    if (sourceId !== targetId) {
+      throw new Error('When replacing an instance with another, they must have the same ID');
+    }
 
     this.keep(source);
     this.deepReplace(target, source);
