@@ -1,5 +1,7 @@
 # `mobx-depot`
 
+[View documentation](https://mobx-depot.dev)
+
 Scaffold MobX-powered models, queries and mutations with your GraphQL schema.
 
 - [NPM](https://www.npmjs.com/package/mobx-depot) ![npm version](https://badgen.net/npm/v/mobx-depot)
