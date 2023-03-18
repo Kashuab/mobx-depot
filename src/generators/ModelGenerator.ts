@@ -76,7 +76,6 @@ export class ModelGenerator {
 
   get imports() {
     return dedent`
-      import { getRootStore } from '../rootStore';
       import { assignInstanceProperties, Selectable } from 'mobx-depot';
       ${this.scalarImports}
       ${this.modelImports}
