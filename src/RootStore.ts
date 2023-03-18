@@ -4,8 +4,12 @@ type IdentifiableModelInstance<IDFieldName extends string> = {
   [key in IDFieldName]?: string;
 } 
 
-type ModelInstanceUtilities = {
+type ModelInstanceUtilities = ({
   assign: (data: any) => void;
+} | {
+  _assign: (data: any) => void;
+}) & {
+  __setSource: (source: ResolveSource) => void;
 }
 
 type ModelInstance<IDFieldName extends string> = (IdentifiableModelInstance<IDFieldName> | {}) & ModelInstanceUtilities;
@@ -38,6 +42,8 @@ type RootStoreOpts<IDFieldName extends string> = {
   idFieldName: IDFieldName;
 }
 
+type ResolveSource = 'remote' | 'local';
+
 export class RootStore<IDFieldName extends string, Models extends RootStoreModels<IDFieldName>, ModelName extends KeyOf<Models>> {
   private opts: RootStoreOpts<IDFieldName>;
 
@@ -62,7 +68,10 @@ export class RootStore<IDFieldName extends string, Models extends RootStoreModel
   }
 
   // TODO: __typename gets in the instances
-  public resolve<D extends object>(data: D): DeepResolved<IDFieldName, Models, ModelName, D> {
+  public resolve<D extends object>(
+    data: D,
+    source: ResolveSource = 'local',
+  ): DeepResolved<IDFieldName, Models, ModelName, D> {
     const resolvedData = Object.entries(data).reduce((resolved, [key, value]) => {
       if (value && typeof value === 'object') {
         if (Array.isArray(value)) {
@@ -93,12 +102,12 @@ export class RootStore<IDFieldName extends string, Models extends RootStoreModel
 
         if (instance) {
           // TODO: Types
-          return this.update(Model, id, resolvedData) as any;
+          return this.update(Model, id, resolvedData, source) as any;
         }
       }
 
       // TODO: Types
-      return this.create(Model, resolvedData) as any;
+      return this.create(Model, resolvedData, source) as any;
     }
 
     return resolvedData;
@@ -108,17 +117,37 @@ export class RootStore<IDFieldName extends string, Models extends RootStoreModel
     return this.getInstanceStore(Model)[id] || null;
   }
 
-  public update<T extends Models[ModelName]>(Model: T, id: string, data: Partial<InstanceType<T>>) {
+  public update<T extends Models[ModelName]>(
+    Model: T,
+    id: string,
+    data: Partial<InstanceType<T>>,
+    source: ResolveSource = 'local'
+  ) {
     const instance = this.get(Model, id);
     if (!instance) throw new Error('Instance not found'); // TODO: Better errors
 
-    instance.assign(data);
+    // Handle potential conflicts with GraphQL fields
+    if ('assign' in instance) {
+      instance.assign(data);
+    } else if ('_assign' in instance) {
+      instance._assign(data);
+    } else {
+      throw new Error(`${Model.name} does not have an assign method`);
+    }
+
+    instance.__setSource(source);
 
     return instance;
   }
 
-  public create<T extends Models[ModelName]>(Model: T, properties: Partial<InstanceType<T>>): InstanceType<T> {
+  public create<T extends Models[ModelName]>(
+    Model: T,
+    properties: Partial<InstanceType<T>>,
+    source: ResolveSource = 'local'
+  ): InstanceType<T> {
     const instance = new Model(properties) as InstanceType<T>;
+    instance.__setSource(source);
+
     const store = this.getInstanceStore(Model);
     const id = this.getInstanceId(instance) || this.generateModelId(Model);
 

@@ -136,11 +136,12 @@ export class ModelGenerator {
       // TODO: Do we need the root store available on the models?
       //       If this gets re-added, the model selector generator needs to be updated to omit the key from the builder
       // indentString(`store = getRootStore();`, 2),
+      indentString("private __source: 'remote' | 'local' = 'local';", 2),
       ...fieldProperties,
     ].join('\n');
   }
 
-  createMethodName(name: string) {
+  createSafeMethodName(name: string) {
     if (this.modelType.fields.some(field => field.name === name)) {
       return `_${name}`;
     }
@@ -149,7 +150,7 @@ export class ModelGenerator {
   }
 
   get selectedDataMethodName() {
-    return this.createMethodName('selectedData');
+    return this.createSafeMethodName('selectedData');
   }
 
   get selectedDataGetter() {
@@ -182,7 +183,7 @@ export class ModelGenerator {
   }
 
   get assignMethodName() {
-    return this.createMethodName('assign');
+    return this.createSafeMethodName('assign');
   }
 
   get assignMethod() {
@@ -194,13 +195,45 @@ export class ModelGenerator {
   }
 
   get setMethodName() {
-    return this.createMethodName('set');
+    return this.createSafeMethodName('set');
   }
 
   get propertySetter() {
     return indentString(dedent`
       ${this.setMethodName}<K extends keyof this>(key: K, value: this[K]) {
         this[key] = value;
+      }
+    `, 2);
+  }
+
+  get setSourceMethod() {
+    return indentString(dedent`
+      __setSource(source: 'remote' | 'local') {
+        this.__source = source;
+      }
+    `, 2);
+  }
+
+  get isRemoteGetterName() {
+    return this.createSafeMethodName('isRemote');
+  }
+
+  get isRemoteGetter() {
+    return indentString(dedent`
+      get ${this.isRemoteGetterName}() {
+        return this.__source === 'remote';
+      }
+    `, 2);
+  }
+
+  get isLocalGetterName() {
+    return this.createSafeMethodName('isLocal');
+  }
+
+  get isLocalGetter() {
+    return indentString(dedent`
+      get ${this.isLocalGetterName}() {
+        return this.__source === 'local';
       }
     `, 2);
   }
@@ -215,6 +248,9 @@ export class ModelGenerator {
       this.selectedDataGetter,
       this.propertySetter,
       this.assignMethod,
+      this.setSourceMethod,
+      this.isRemoteGetter,
+      this.isLocalGetter,
       this.footer,
       this.selectorGenerator.code,
     ];

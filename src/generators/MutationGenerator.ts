@@ -218,11 +218,11 @@ export class MutationGenerator {
     return indentString(dedent`
       async mutate() {    
         this.setError(null);
-        this.setLoading(true);    
+        this.setLoading(true);
         
         const promise = (async () => {
           const data = await this.__client.request(this.document${this.hasArgs ? ', this.args' : ''});
-          const resolvedData = this.__rootStore.resolve(data) as ${this.dataTypeName};
+          const resolvedData = this.__rootStore.resolve(data, 'remote') as ${this.dataTypeName};
           
           this.setData(resolvedData);
           
