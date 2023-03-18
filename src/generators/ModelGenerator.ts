@@ -133,14 +133,28 @@ export class ModelGenerator {
       .filter(Boolean)
 
     return [
-      indentString(`store = getRootStore();`, 2),
+      // TODO: Do we need the root store available on the models?
+      //       If this gets re-added, the model selector generator needs to be updated to omit the key from the builder
+      // indentString(`store = getRootStore();`, 2),
       ...fieldProperties,
     ].join('\n');
   }
 
+  createMethodName(name: string) {
+    if (this.modelType.fields.some(field => field.name === name)) {
+      return `_${name}`;
+    }
+
+    return name;
+  }
+
+  get selectedDataMethodName() {
+    return this.createMethodName('selectedData');
+  }
+
   get selectedDataGetter() {
     return indentString(dedent`
-      get selectedData() {
+      get ${this.selectedDataMethodName}() {
         const data: Partial<this> = {};
         const keys: (keyof this)[] = [${this.modelType.fields.map(f => `'${f.name}'`).join(', ')}]
     
@@ -167,28 +181,28 @@ export class ModelGenerator {
     `;
   }
 
+  get assignMethodName() {
+    return this.createMethodName('assign');
+  }
+
   get assignMethod() {
     return indentString(dedent`
-      assign(data: Partial<${this.baseModelClassName}>) {
+      ${this.assignMethodName}(data: Partial<${this.baseModelClassName}>) {
         assignInstanceProperties(this, data);
       }
     `, 2);
   }
 
+  get setMethodName() {
+    return this.createMethodName('set');
+  }
+
   get propertySetter() {
     return indentString(dedent`
-      set<K extends keyof this>(key: K, value: this[K]) {
+      ${this.setMethodName}<K extends keyof this>(key: K, value: this[K]) {
         this[key] = value;
       }
     `, 2);
-  }
-
-  get ensureSelectedMethod() {
-    return indentString(dedent`
-      ensureSelected<K extends keyof this>(key: K): asserts this is this & { [k in K]: this[k] }
-        if (this[key] === undefined) throw new Error(\`Property \${key} is not selected\`);
-      }
-    `, 2).replace(/\\/g, '');
   }
 
   get baseModelCode() {

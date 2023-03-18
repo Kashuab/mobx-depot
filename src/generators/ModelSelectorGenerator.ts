@@ -44,10 +44,9 @@ export class ModelSelectorGenerator {
 
     const omits = [
       ...this.modelNestedObjectFields.map(({ name }) => `'${name}'`),
-      "'set'", // Need to omit other methods from the class
-      "'assign'",
-      "'selectedData'",
-      "'store'",
+      `'${this.model.setMethodName}'`, // Need to omit other methods from the class
+      `'${this.model.assignMethodName}'`,
+      `'${this.model.selectedDataMethodName}'`,
     ]
 
     if (this.model.hasIdField) omits.push(`'${this.idFieldName}'`);
