@@ -5,8 +5,8 @@ interface IMutation {
   data: unknown;
   error: Error | null;
   loading: boolean;
-  mutatePromise: Promise<unknown> | null;
-  mutate: () => Promise<unknown>;
+  promise: Promise<unknown> | null;
+  dispatch: () => Promise<unknown>;
 }
 
 type UseMutationOpts<Data> = {
@@ -20,26 +20,26 @@ type UseMutationOpts<Data> = {
  *
  * @param generate A function that returns a `Mutation` instance.
  */
-export function useMutation<Mutation extends IMutation, Data extends Exclude<Mutation['data'], null>>(
-  generate: () => Mutation,
+export function useMutation<Mutation extends IMutation, Data extends Exclude<Mutation['data'], null>, GenerateArgs extends any[]>(
+  generate: (...args: GenerateArgs) => Mutation,
   opts: UseMutationOpts<Data> = {},
 ) {
   const [mutation, setMutation] = useState<Mutation | null>(null);
 
-  const dispatch = async (): Promise<Data> => {
-    const newMutation = generate();
+  const dispatch = async (...args: GenerateArgs): Promise<Data> => {
+    const newMutation = generate(...args);
 
     setMutation(newMutation);
 
     let data: Data;
 
-    if (newMutation.mutatePromise) {
+    if (newMutation.promise) {
       // If the mutation is already in progress, await its promise
-      data = await newMutation.mutatePromise as Data;
+      data = await newMutation.promise as Data;
     } else {
       // Automatically mutate if the generate function didn't call it already.
       // Is this reliable? :shrug:
-      data = await newMutation.mutate() as Data;
+      data = await newMutation.dispatch() as Data;
     }
 
     opts.onSuccess?.(data);

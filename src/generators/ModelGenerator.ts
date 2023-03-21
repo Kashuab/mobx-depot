@@ -127,7 +127,9 @@ export class ModelGenerator {
         const isNullable = typeIsNullable(field.type);
         if (isNullable) type += ' | null';
 
-        return indentString(`@Selectable() ${field.name}!: ${type};`, 2);
+        // `declare` here avoids conflicts in regards to tsconfig option "useDefineForClassFields"
+        // See: https://github.com/microsoft/TypeScript/issues/35081
+        return indentString(`@Selectable() declare ${field.name}: ${type};`, 2);
       })
       .filter(Boolean)
 

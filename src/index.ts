@@ -6,3 +6,4 @@ export { useQuery } from './react/useQuery';
 
 export { assignInstanceProperties } from './lib/assignInstanceProperties';
 export { Selectable } from './decorators/Selectable';
+export * from './DepotGQLClient';

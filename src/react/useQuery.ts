@@ -5,8 +5,8 @@ interface IQuery {
   data: unknown;
   loading: boolean;
   error: Error | null;
-  queryPromise: Promise<unknown> | null;
-  query: () => Promise<unknown>;
+  promise: Promise<unknown> | null;
+  dispatch: () => Promise<unknown>;
 }
 
 type UseQueryOpts = {
@@ -27,14 +27,14 @@ export function useQuery<Query extends IQuery, Data extends Exclude<Query['data'
 
     setQuery(newQuery);
 
-    if (newQuery.queryPromise) {
+    if (newQuery.promise) {
       // If the Query is already in progress, await its promise
-      return await newQuery.queryPromise as Data;
+      return await newQuery.promise as Data;
     }
 
     // Automatically mutate if the generate function didn't call it already.
     // Is this reliable? :shrug:
-    return await newQuery.query() as Data;
+    return await newQuery.dispatch() as Data;
   }
 
   useEffect(() => {

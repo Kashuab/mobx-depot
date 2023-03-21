@@ -77,13 +77,13 @@ export class RootStore<IDFieldName extends string, Models extends RootStoreModel
         if (Array.isArray(value)) {
           resolved[key] = value.map((item) => {
             if (this.isResolvable(item)) {
-              return this.resolve(item);
+              return this.resolve(item, source);
             } else {
               return item;
             }
           });
         } else {
-          resolved[key] = this.resolve(value);
+          resolved[key] = this.resolve(value, source);
         }
       } else {
         resolved[key] = value;
@@ -146,6 +146,7 @@ export class RootStore<IDFieldName extends string, Models extends RootStoreModel
     source: ResolveSource = 'local'
   ): InstanceType<T> {
     const instance = new Model(properties) as InstanceType<T>;
+
     instance.__setSource(source);
 
     const store = this.getInstanceStore(Model);
@@ -288,7 +289,8 @@ export class RootStore<IDFieldName extends string, Models extends RootStoreModel
     return model;
   }
 
-  private isResolvable(data: object): data is Resolvable<ModelName, IDFieldName> {
+  private isResolvable(data: unknown): data is Resolvable<ModelName, IDFieldName> {
+    if (typeof data !== 'object' || data === null) return false;
     if (!('__typename' in data)) return false;
     return !(typeof data.__typename !== 'string' || !(data.__typename in this.models));
   }

@@ -10,7 +10,6 @@ import {
 } from "graphql/utilities";
 import fs, {readFileSync} from 'fs';
 import {ScalarGenerator} from "./generators/ScalarGenerator";
-import {MutationGenerator} from "./generators/MutationGenerator";
 import {InputObjectInterfaceGenerator} from "./generators/InputObjectInterfaceGenerator";
 import {QueryGenerator} from "./generators/QueryGenerator";
 import {RootStoreGenerator} from "./generators/RootStoreGenerator";
@@ -80,7 +79,7 @@ export async function generate(opts: GenerateOpts) {
       throw new Error('Expected queryType to have fields');
     }
   
-    const generators = queryType.fields.map(field => new QueryGenerator(field));
+    const generators = queryType.fields.map(field => new QueryGenerator(field, false));
   
     writeQueriesToDisk(generators);
   }
@@ -104,7 +103,7 @@ export async function generate(opts: GenerateOpts) {
       throw new Error('Expected mutationType to have fields');
     }
   
-    const generators = mutationType.fields.map(field => new MutationGenerator(field));
+    const generators = mutationType.fields.map(field => new QueryGenerator(field, true));
   
     writeMutationsToDisk(generators);
   }
@@ -181,7 +180,7 @@ export async function generate(opts: GenerateOpts) {
     });
   }
   
-  function writeMutationsToDisk(mutations: MutationGenerator[]) {
+  function writeMutationsToDisk(mutations: QueryGenerator[]) {
     if (!fs.existsSync(withOutDir('depot/mutations'))) {
       fs.mkdirSync(withOutDir('depot/mutations'), { recursive: true });
     }

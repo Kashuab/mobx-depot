@@ -35,8 +35,7 @@ export class RootStoreGenerator {
   get code() {
     // I gave up trying to avoid keeping code inline with the template string. :(
     return `
-import { RootStore } from 'mobx-depot';
-import { GraphQLClient } from 'graphql-request';
+import { RootStore, DepotGQLClient } from 'mobx-depot';
 ${this.modelImports}
 
 // Use a function so they can be injected lazily, avoids circular dependency issues at runtime
@@ -48,22 +47,22 @@ export type RootStoreModel = ReturnType<typeof getModels>[keyof ReturnType<typeo
 
 const rootStore = new RootStore(getModels, { idFieldName: "${this.idFieldName}" });
 
-let graphqlClient: GraphQLClient | null = null;
+let client: DepotGQLClient | null = null;
 
 export function getGraphQLClient() {
-  if (!graphqlClient) {
-    throw new Error('GraphQL client not set, you must call setGraphQLClient in the root of your application.');
+  if (!client) {
+    throw new Error('GraphQL client not set, you must call initializeDepotClient in the root of your application.');
   }
   
-  return graphqlClient;
+  return client;
 }
 
 export function getRootStore() {
   return rootStore;
 }
 
-export function setGraphQLClient(client: GraphQLClient) {
-  graphqlClient = client;
+export function initializeDepotClient(...args: ConstructorParameters<typeof DepotGQLClient>) {
+  client = new DepotGQLClient(...args);
 }
     `;
   }

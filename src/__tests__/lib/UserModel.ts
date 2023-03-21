@@ -2,6 +2,11 @@ import {PostModel} from "./PostModel";
 import {assignInstanceProperties} from "../../lib/assignInstanceProperties";
 
 export class UserModel {
+  source: 'local' | 'remote' = 'local';
+  __setSource(source: 'local' | 'remote') {
+    this.source = source;
+  }
+
   id: string
   name: string
   posts: PostModel[]

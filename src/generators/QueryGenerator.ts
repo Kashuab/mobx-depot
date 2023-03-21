@@ -1,29 +1,29 @@
-import {IntrospectionField, IntrospectionInputTypeRef} from "graphql/utilities/getIntrospectionQuery";
+import {IntrospectionField} from "graphql/utilities/getIntrospectionQuery";
 import {pascalCase} from "change-case";
-import {getTypeName, typeIsNullable} from "./ModelGenerator";
+import {getTypeKind, getTypeName, typeIsNullable} from "./ModelGenerator";
 import {indentString} from "../lib/indentString";
 import dedent from "dedent";
 import {isScalarType, scalarIsPrimitive} from "../generate";
 
-
-// TODO: DRY this up. Very similar to MutationGenerator
 export class QueryGenerator {
   field: IntrospectionField;
+  isMutationType: boolean;
   
-  constructor(field: IntrospectionField) {
+  constructor(field: IntrospectionField, isMutationType: boolean) {
     this.field = field;
+    this.isMutationType = isMutationType;
   }
 
   get fileName() {
     return `${this.className}.ts`;
   }
 
-  get queryArgumentImports() {
+  get variableImports() {
     const imports: string[] = [];
 
     this.field.args.forEach(field => {
-      if (field.type.kind === 'INPUT_OBJECT') {
-        imports.push(`import { ${field.type.name} } from '../inputs/${field.type.name}';`);
+      if (getTypeKind(field.type) === 'INPUT_OBJECT') {
+        imports.push(`import { ${getTypeName(field.type)} } from '../inputs/${getTypeName(field.type)}';`);
       }
 
       if (isScalarType(field.type) && !scalarIsPrimitive(field.type)) {
@@ -42,45 +42,45 @@ export class QueryGenerator {
     return [
       "import { makeAutoObservable } from 'mobx';",
       "import { gql } from 'graphql-request';",
-      "import { buildSelection } from 'mobx-depot';",
+      "import { buildSelection, CachePolicy } from 'mobx-depot';",
       "import { getGraphQLClient, getRootStore } from '../rootStore';",
       `import { ${this.payloadModelName} } from '../../${this.payloadModelName}';`,
       this.payloadSelectorImport,
-      ...this.queryArgumentImports,
+      ...this.variableImports,
     ].join('\n');
   }
 
   get className() {
-    return `${pascalCase(this.field.name)}Query`;
+    return `${pascalCase(this.field.name)}${this.isMutationType ? 'Mutation' : 'Query'}`;
   }
 
   get header() {
     return `export class ${this.className} {`;
   }
 
-  get argDefinitions() {
+  get variableDefinitions() {
     return this.field.args.map(arg => {
       const optional = typeIsNullable(arg.type);
       return `${arg.name}${optional ? '?' : ''}: ${getTypeName(arg.type)}`;
     });
   }
 
-  get hasArgs() {
-    return this.argDefinitions.length > 0;
+  get hasVariables() {
+    return this.variableDefinitions.length > 0;
   }
 
   get constructorAssignments() {
     return this.field.args.map(arg => `this.${arg.name} = ${arg.name};`);
   }
 
-  get argumentsTypeName() {
-    return `${this.className}Arguments`;
+  get variablesTypeName() {
+    return `${this.className}Variables`;
   }
 
-  get argumentsType() {
-    if (!this.hasArgs) return '';
+  get variablesType() {
+    if (!this.hasVariables) return '';
 
-    return `type ${this.argumentsTypeName} = { ${this.argDefinitions.join(', ')} };`
+    return `type ${this.variablesTypeName} = { ${this.variableDefinitions.join(', ')} };`
   }
 
   get fieldTypeName() {
@@ -98,8 +98,9 @@ export class QueryGenerator {
   get constructorFunction() {
     return indentString(
       [
-        `constructor(${this.hasArgs ? `args: ${this.argumentsTypeName}, ` : ''}select: ${this.selectionBuilderType}) {`,
-        this.hasArgs && indentString("this.args = args;", 2),
+        `constructor(${this.hasVariables ? `variables: ${this.variablesTypeName}, ` : ''}select: ${this.selectionBuilderType}, options: Options = {}) {`,
+        indentString("this.options = options;", 2),
+        this.hasVariables && indentString("this.variables = variables;", 2),
         indentString(`this.selection = buildSelection(${this.payloadSelectorName}(select));`, 2),
         indentString("makeAutoObservable(this);", 2),
         '}',
@@ -113,12 +114,13 @@ export class QueryGenerator {
       [
         '__rootStore = getRootStore();',
         '__client = getGraphQLClient();',
-        this.hasArgs && `args: ${this.argumentsTypeName};`,
+        this.hasVariables && `variables: ${this.variablesTypeName};`,
         'selection: string;',
         'loading = false;',
         'error: Error | null = null;',
         `data: ${this.dataTypeName} | null = null;`,
-        `queryPromise: Promise<${this.dataTypeName}> | null = null;`,
+        'options: Options = {};',
+        `promise: Promise<${this.dataTypeName} | null> | null = null;`,
       ].filter(Boolean).join('\n'),
       2,
     )
@@ -126,7 +128,7 @@ export class QueryGenerator {
 
   get documentVariables() {
     // TODO: I'm building this with a Rails GQL API, so I'm not sure if this is a general solution.
-    // Every mutation I've seen so far has a single argument, which is an input object. This will certainly
+    // Every mutation I've seen so far has a single variable, which is an input object. This will certainly
     // NOT be the case for all GQL APIs.
     return this.field.args.reduce((variables, arg) => {
       variables.push(`${arg.name}: $${arg.name}`);
@@ -136,7 +138,7 @@ export class QueryGenerator {
   }
 
   get documentVariableDefinitions() {
-    // TODO: Multiple argument mutations
+    // TODO: Multiple variable mutations
     return this.field.args.reduce((variables, arg) => {
       let definition = `$${arg.name}: ${getTypeName(arg.type, { normalizeName: false })}`;
 
@@ -154,7 +156,7 @@ export class QueryGenerator {
     return indentString(dedent`
       get document() {
         return gql\`
-          query ${pascalCase(this.field.name)}${this.documentVariableDefinitions ? `(${this.documentVariableDefinitions})` : ''} {
+          ${this.isMutationType ? 'mutation' : 'query'} ${pascalCase(this.field.name)}${this.documentVariableDefinitions ? `(${this.documentVariableDefinitions})` : ''} {
             ${this.field.name}${this.documentVariables ? `(${this.documentVariables})` : ''} 
               \${this.selection}
           }
@@ -171,10 +173,10 @@ export class QueryGenerator {
     `, 2);
   }
 
-  get setArgsMethod() {
+  get setVariablesMethod() {
     return indentString(dedent`
-      setArgs(args: ${this.argumentsTypeName}) {
-        this.args = args;
+      setVariables(variables: ${this.variablesTypeName}) {
+        this.variables = variables;
       }
     `, 2);
   }
@@ -187,10 +189,10 @@ export class QueryGenerator {
     `, 2);
   }
 
-  get setQueryPromiseMethod() {
+  get setPromiseMethod() {
     return indentString(dedent`
-      setQueryPromise(promise: Promise<${this.dataTypeName}> | null) {
-        this.queryPromise = promise;
+      setPromise(promise: Promise<${this.dataTypeName} | null> | null) {
+        this.promise = promise;
       }
     `, 2);
   }
@@ -220,22 +222,34 @@ export class QueryGenerator {
     return `type ${this.dataTypeName} = { ${this.field.name}: ${this.payloadModelName}${this.fieldReturnsArray ? '[]' : ''} };`;
   }
 
-  get queryMethod() {
+  get optionsType() {
+    return `type Options = { cachePolicy?: CachePolicy };`;
+  }
+
+  get dispatchMethod() {
     return indentString(dedent`
-      async query() {    
+      async dispatch() {    
         this.setError(null);
         this.setLoading(true);    
         
         const promise = (async () => {
-          const data = await this.__client.request(this.document${this.hasArgs ? ', this.args' : ''});
-          const resolvedData = this.__rootStore.resolve(data, 'remote') as ${this.dataTypeName};
+          const result = this.__client.request<${this.dataTypeName}${this.hasVariables ? `, ${this.variablesTypeName}` : ''}>(
+            { document: this.document${this.hasVariables ? ', variables: this.variables' : ''}, cachePolicy: this.options.cachePolicy },
+          );
           
-          this.setData(resolvedData);
+          let resultData: ${this.dataTypeName} | null = null;
           
-          return resolvedData;
+          for await (const data of result) {
+            const resolvedData = this.__rootStore.resolve(data, 'remote') as ${this.dataTypeName};
+            resultData = resolvedData;
+            
+            this.setData(resolvedData);
+          }
+          
+          return resultData;
         })();
         
-        this.setQueryPromise(promise);
+        this.setPromise(promise);
         
         let result: ${this.dataTypeName} | null = null;
         
@@ -260,18 +274,19 @@ export class QueryGenerator {
   get code() {
     const segments = [
       this.imports,
-      this.argumentsType,
+      this.optionsType,
+      this.variablesType,
       this.dataType,
       this.header,
       this.properties,
       this.constructorFunction,
       this.documentGetter,
       this.setLoadingMethod,
-      this.hasArgs && this.setArgsMethod,
+      this.hasVariables && this.setVariablesMethod,
       this.setDataMethod,
-      this.setQueryPromiseMethod,
+      this.setPromiseMethod,
       this.setErrorMethod,
-      this.queryMethod,
+      this.dispatchMethod,
       this.footer
     ].filter(Boolean);
 
