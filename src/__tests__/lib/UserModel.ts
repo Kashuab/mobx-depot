@@ -8,7 +8,8 @@ export class UserModel {
   }
 
   id: string
-  name: string
+  firstName: string
+  lastName: string;
   posts: PostModel[]
   metadata: {
     lastOnlineAt: string;
@@ -17,7 +18,8 @@ export class UserModel {
 
   constructor(init: any) {
     this.id = init.id;
-    this.name = init.name;
+    this.firstName = init.firstName;
+    this.lastName = init.lastName;
     this.posts = init.posts;
     this.metadata = init.metadata;
   }

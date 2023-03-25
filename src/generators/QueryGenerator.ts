@@ -232,18 +232,19 @@ export class QueryGenerator {
         this.setError(null);
         this.setLoading(true);    
         
+        const cachePolicy = ${this.isMutationType ? '"network-only"' : "this.options.cachePolicy"};
+        
         const promise = (async () => {
           const result = this.__client.request<${this.dataTypeName}${this.hasVariables ? `, ${this.variablesTypeName}` : ''}>(
-            { document: this.document${this.hasVariables ? ', variables: this.variables' : ''}, cachePolicy: this.options.cachePolicy },
+            { document: this.document${this.hasVariables ? ', variables: this.variables' : ''}, cachePolicy },
           );
           
           let resultData: ${this.dataTypeName} | null = null;
           
           for await (const data of result) {
-            const resolvedData = this.__rootStore.resolve(data, 'remote') as ${this.dataTypeName};
-            resultData = resolvedData;
+            resultData = data as ${this.dataTypeName} | null;
             
-            this.setData(resolvedData);
+            this.setData(resultData);
           }
           
           return resultData;

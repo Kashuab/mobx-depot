@@ -43,11 +43,14 @@ const getModels = () => ({
 ${indentString(this.rootStoreModels, 2)}
 });
 
-export type RootStoreModel = ReturnType<typeof getModels>[keyof ReturnType<typeof getModels>];
+type ModelMap = ReturnType<typeof getModels>;
+type GQLTypename = keyof ModelMap;
+
+export type RootStoreModel = ModelMap[GQLTypename];
 
 const rootStore = new RootStore(getModels, { idFieldName: "${this.idFieldName}" });
 
-let client: DepotGQLClient | null = null;
+let client: DepotGQLClient<"${this.idFieldName}", ModelMap, GQLTypename> | null = null;
 
 export function getGraphQLClient() {
   if (!client) {
@@ -61,8 +64,8 @@ export function getRootStore() {
   return rootStore;
 }
 
-export function initializeDepotClient(...args: ConstructorParameters<typeof DepotGQLClient>) {
-  client = new DepotGQLClient(...args);
+export function initializeDepotClient(url: string, opts: ConstructorParameters<typeof DepotGQLClient>[1]) {
+  client = new DepotGQLClient(url, opts, rootStore);
 }
     `;
   }

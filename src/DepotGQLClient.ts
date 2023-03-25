@@ -1,5 +1,6 @@
 import { GraphQLClient, Variables, RequestOptions } from "graphql-request";
 import { RequestConfig } from "graphql-request/src/types";
+import {DeepResolved, KeyOf, RootStore, RootStoreModels} from "./RootStore";
 
 export type CachePolicy = "no-cache" | "cache-first" | "cache-only" | "network-only" | "cache-and-network";
 
@@ -19,22 +20,24 @@ export type DepotGQLClientInit = {
 /**
  * A wrapper around GraphQLClient from `graphql-request` that adds a cache layer.
  */
-export class DepotGQLClient {
+export class DepotGQLClient<IDFieldName extends string, Models extends RootStoreModels<IDFieldName>, ModelName extends KeyOf<Models>> {
   cache: [string, any][] = [];
   gqlClient: GraphQLClient;
   defaultCachePolicy: CachePolicy;
+  rootStore: RootStore<IDFieldName, Models, ModelName>;
 
-  constructor(url: string, options: DepotGQLClientInit & RequestConfig = {}) {
+  constructor(url: string, options: DepotGQLClientInit & RequestConfig = {}, rootStore: RootStore<IDFieldName, Models, ModelName>) {
     this.defaultCachePolicy = options.defaultCachePolicy || "cache-and-network";
+    this.rootStore = rootStore;
 
     // Make sure not to pass unused options to GraphQLClient
     delete options.defaultCachePolicy;
     this.gqlClient = new GraphQLClient(url, options);
   }
 
-  async *request<T = any, V extends Variables = Variables>(
+  async *request<T extends {} = {}, V extends Variables = Variables>(
     options: RequestOptions<V, T> & { cachePolicy?: CachePolicy },
-  ): AsyncGenerator<T> {
+  ): AsyncGenerator<DeepResolved<IDFieldName, Models, ModelName, T>> {
     const { document, variables, cachePolicy = this.defaultCachePolicy } = options;
 
     const query = typeof document === "string" ? document : document.loc?.source.body;
@@ -43,13 +46,15 @@ export class DepotGQLClient {
     const cacheKey = this.getCacheKey(query, variables);
 
     if (this.policyAllowsHit(cachePolicy)) {
-      const cacheHit = this.getCachedResponse<T>(cacheKey);
+      const cacheHit = this.getCachedResponse<DeepResolved<IDFieldName, Models, ModelName, T>>(cacheKey);
 
       if (cacheHit) {
         yield cacheHit;
 
         // Avoid network request if cache was hit
-        if (cachePolicy === 'cache-first') return;
+        if (cachePolicy === 'cache-first') {
+          return;
+        }
       } else if (cachePolicy === 'cache-only') {
         // TODO: Better error here
         throw new Error(`Cache missed for operation ${document}`);
@@ -58,12 +63,13 @@ export class DepotGQLClient {
 
     if (this.policyAllowsNetwork(cachePolicy)) {
       const result = await this.gqlClient.request<T, V>(options);
+      const resolved = this.rootStore.resolve(result, 'remote');
 
       if (this.policyAllowsStore(cachePolicy)) {
-        this.cacheResponse(cacheKey, result);
+        this.cacheResponse(cacheKey, resolved);
       }
 
-      yield result;
+      yield resolved;
     }
   }
 

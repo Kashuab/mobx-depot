@@ -1,4 +1,4 @@
-type KeyOf<T extends object> = Extract<keyof T, string>;
+export type KeyOf<T extends object> = Extract<keyof T, string>;
 
 type IdentifiableModelInstance<IDFieldName extends string> = {
   [key in IDFieldName]?: string;
@@ -24,7 +24,7 @@ type Resolvable<Typename extends string, IDFieldName extends string> = {
   [key in IDFieldName]: string;
 }
 
-type DeepResolved<IDFieldName extends string, Models extends RootStoreModels<IDFieldName>, ModelName extends KeyOf<Models>, Data extends object> =
+export type DeepResolved<IDFieldName extends string, Models extends RootStoreModels<IDFieldName>, ModelName extends KeyOf<Models>, Data extends object> =
   Data extends Resolvable<ModelName, IDFieldName>
     ? InstanceType<Models[Data['__typename']]>
     : {

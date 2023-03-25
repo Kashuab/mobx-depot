@@ -21,7 +21,7 @@ describe('RootStore', () => {
       user: {
         __typename: 'User',
         id: '1',
-        name: 'John',
+        firstName: 'John',
       }
     } as const);
 
@@ -35,7 +35,7 @@ describe('RootStore', () => {
         user: {
           __typename: 'User',
           id: '1',
-          name: 'John',
+          firstName: 'John',
           posts: [
             {
               __typename: 'Post',
@@ -63,7 +63,7 @@ describe('RootStore', () => {
         user: {
           __typename: 'User',
           id: '1',
-          name: 'John',
+          firstName: 'John',
           posts: [],
         }
       }
@@ -76,7 +76,7 @@ describe('RootStore', () => {
     const user = store.resolve({
       __typename: 'User',
       id: '1',
-      name: 'John',
+      firstName: 'John',
     });
 
     const postOneData = {
@@ -97,7 +97,7 @@ describe('RootStore', () => {
     const updatedUser = store.resolve({
       __typename: 'User',
       id: '1',
-      name: 'John (updated)',
+      firstName: 'John (updated)',
       posts: [
         postOneData,
         postTwoData,
@@ -113,7 +113,7 @@ describe('RootStore', () => {
     const userData = {
       __typename: 'User',
       id: '1',
-      name: 'Kyle',
+      firstName: 'Kyle',
       posts: [
         {
           __typename: 'Post',
@@ -141,7 +141,7 @@ describe('RootStore', () => {
         user: {
           __typename: 'User',
           id: '1',
-          name: 'Bing bong',
+          firstName: 'Bing bong',
           metadata: {
             lastOnlineAt: 'now',
           }
@@ -166,7 +166,7 @@ describe('RootStore', () => {
     const updatedUser = updateUserPayload.updateUser.user;
 
     expect(user).toBe(updatedUser);
-    expect(user.name).toBe('Bing bong');
+    expect(user.firstName).toBe('Bing bong');
     expect(user.metadata.lastOnlineAt).toBe('now');
     expect(user.metadata.postCount).toBe(0);
   });
@@ -180,7 +180,7 @@ describe('RootStore', () => {
     const user = otherIdStore.resolve({
       __typename: 'OtherIdUserModel',
       otherId: '1',
-      name: 'John',
+      firstName: 'John',
     });
 
     const postOneData = {
@@ -201,7 +201,7 @@ describe('RootStore', () => {
     const updatedUser = otherIdStore.resolve({
       __typename: 'OtherIdUserModel',
       otherId: '1',
-      name: 'John (updated)',
+      firstName: 'John (updated)',
       posts: [
         postOneData,
         postTwoData,
