@@ -20,6 +20,7 @@
   "files": [
     "dist"
   ],
+  "main": "./dist/mobx-depot.modern.mjs",
   "exports": {
     ".": {
       "require": "./dist/mobx-depot.js",
