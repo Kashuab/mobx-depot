@@ -43,7 +43,7 @@ export class QueryGenerator {
       "import { makeAutoObservable } from 'mobx';",
       "import { gql } from 'graphql-request';",
       "import { buildSelection, CachePolicy } from 'mobx-depot';",
-      "import { getGraphQLClient, getRootStore } from '../rootStore';",
+      "import { getGraphQLClient } from '../rootStore';",
       `import { ${this.payloadModelName} } from '../../${this.payloadModelName}';`,
       this.payloadSelectorImport,
       ...this.variableImports,
@@ -112,7 +112,6 @@ export class QueryGenerator {
   get properties() {
     return indentString(
       [
-        '__rootStore = getRootStore();',
         '__client = getGraphQLClient();',
         this.hasVariables && `variables: ${this.variablesTypeName};`,
         'selection: string;',
@@ -283,7 +282,8 @@ export class QueryGenerator {
       this.constructorFunction,
       this.documentGetter,
       this.setLoadingMethod,
-      this.hasVariables && this.setVariablesMethod,
+      // TODO: Is this needed for anything?
+      // this.hasVariables && this.setVariablesMethod,
       this.setDataMethod,
       this.setPromiseMethod,
       this.setErrorMethod,
