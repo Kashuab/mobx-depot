@@ -13,7 +13,7 @@ export function buildSelection(items: Selection[]) {
   for (const key of items) {
     selection += `\n${indentString(key.fieldName, 2)}`;
 
-    if (key.args) {
+    if (key.args && Object.keys(key.args).length > 0) {
       selection += '(';
 
       for (const argName in key.args) {

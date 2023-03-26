@@ -1,4 +1,4 @@
-import {getTypeName, ModelGenerator} from "./ModelGenerator";
+import {getTypeName, ModelGenerator, typeIsNullable} from "./ModelGenerator";
 import {referencesModel} from "../makeIntrospectionQuery";
 import dedent from "dedent";
 import {indentString} from "../lib/indentString";
@@ -44,29 +44,25 @@ export class ModelSelectorGenerator {
     return this.modelNestedObjectFields.length > 0;
   }
 
-  get nestedBuilderTypes() {
-    return this.modelNestedObjectFields.map(({ name, type, args }) => {
-      const typeName = `${pascalCase(name)}Field`;
-      let definition = `((builder: ${getTypeName(type, { normalizeName: true, stripArrayType: true })}SelectionBuilder) => ${this.model.modelType.name}SelectorProxy)`;
+  get nestedObjectArgsTypes() {
+    return this.modelNestedObjectFields.map(({name, type, args}) => {
+      if (!args?.length) return null;
 
-      // This makes me sad :(
-      if (args?.length) {
-        definition += ` & {
-${indentString(
-  args.map(arg => `${arg.name}: (${arg.name}: ${getTypeName(arg.type)}) => ${typeName};`).join('\n'),
-  2
-)}
+      const typeName = `${pascalCase(name)}Args`;
+      return `
+type ${typeName} = {
+${indentString(args.map(arg => `${arg.name}${typeIsNullable(arg.type) ? '?' : ''}: ${getTypeName(arg.type)};`).join('\n'), 2)}
 }`
-      }
-
-      return `type ${typeName} = ${definition};`;
-    }).join('\n')
+    }).filter(Boolean).join('\n');
   }
+
 
   get proxyType() {
     const typeName = `${this.model.modelType.name}SelectorProxy`;
-    const nestedProxyGetters = this.modelNestedObjectFields.map(({ name }) => {
-      return `${name}: ${pascalCase(name)}Field;`
+    const nestedProxyGetters = this.modelNestedObjectFields.map(({ name, type, args }) => {
+      const hasArgs = args?.length > 0;
+      const definition = `(${hasArgs ? `args: ${pascalCase(name)}Args, ` : ''}builder: ${getTypeName(type, { normalizeName: true, stripArrayType: true })}SelectionBuilder) => ${this.model.modelType.name}SelectorProxy`
+      return `${name}: ${definition};`
     })
 
     const omits = [
@@ -139,25 +135,14 @@ ${indentString(this.primitiveFields.map(({ name, type }) => `* - \`${name}\`: \`
   get proxyGeneratorNestedObjectSwitchCases() {
     return this.modelNestedObjectFields.map(({ name, type, args }) => {
       const fieldModelName = getTypeName(type, { stripArrayType: true, normalizeName: true });
+      const hasArgs = args?.length > 0;
 
       return `
         case '${name}': {
-          const args: Record<string, any> = {};
-          
-          const builder = (build: ${fieldModelName}SelectionBuilder) => {
-            selections.push({ fieldName: prop as string, children: selectFrom${fieldModelName}(build), args });
-            
+          return (${hasArgs ? `args: ${pascalCase(name)}Args, ` : ''}build: ${fieldModelName}SelectionBuilder) => {
+            selections.push({ fieldName: prop as string, children: selectFrom${fieldModelName}(build)${hasArgs ? ', args' : ''} });
             return proxy;
           }
-          ${args?.map(({ name, type }) => {
-            return `
-          builder.${name} = (value: ${getTypeName(type)}) => {
-            args.${name} = value;
-            return builder;
-          }
-`;
-          }).join('') || ''}
-          return builder;
         }`;
     }).join('');
   }
@@ -165,7 +150,7 @@ ${indentString(this.primitiveFields.map(({ name, type }) => `* - \`${name}\`: \`
   get code() {
     const segments = [
       this.imports,
-      this.nestedBuilderTypes,
+      this.nestedObjectArgsTypes,
       this.proxyType,
       this.proxyGenerator,
     ]

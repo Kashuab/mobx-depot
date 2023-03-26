@@ -42,12 +42,9 @@ my vision for the library is clear before I start accepting PRs. Though I'm tota
 
 ## Limitations
 
-As is common in early development, there are currently a slew of limitations that will be addressed in the future:
+As is common in early development, there are limitations that will be addressed in the future:
 
 - Only TypeScript supported
 - GraphQL Subscriptions are not supported
-- Object types cannot include the following field names: `set`, `selectedData`, `assign`, and `store` (see [issue #22](https://github.com/Kashuab/mobx-depot/issues/22))
-- Cache management is not implemented
-- Probably more things that I'm not aware of yet
 
 Looking for the docs? [View documentation](https://mobx-depot.dev)
