@@ -1,9 +1,8 @@
-export { RootStore } from './RootStore';
-export { buildSelection } from './buildSelection';
-export { makeModelObservable } from './makeModelObservable';
-export { useMutation } from './react/useMutation';
-export { useQuery } from './react/useQuery';
-
-export { assignInstanceProperties } from './lib/assignInstanceProperties';
-export { Selectable } from './decorators/Selectable';
+export * from './RootStore';
+export * from './buildSelection';
+export * from './makeModelObservable';
+export * from './react/useMutation';
+export * from './react/useQuery';
+export * from './lib/assignInstanceProperties';
+export * from './decorators/Selectable';
 export * from './DepotGQLClient';

@@ -2,6 +2,7 @@ import {getTypeName, ModelGenerator} from "./ModelGenerator";
 import {referencesModel} from "../makeIntrospectionQuery";
 import dedent from "dedent";
 import {indentString} from "../lib/indentString";
+import { pascalCase } from "change-case";
 
 type ModelSelectorGeneratorOpts = {
   idFieldName: string;
@@ -32,15 +33,41 @@ export class ModelSelectorGenerator {
     }).join('\n');
   }
 
+  get imports() {
+    return dedent`
+      import { Selection } from 'mobx-depot';
+      ${this.selectorFunctionImports}
+    `
+  }
+
   get hasNestedObjects() {
     return this.modelNestedObjectFields.length > 0;
   }
 
+  get nestedBuilderTypes() {
+    return this.modelNestedObjectFields.map(({ name, type, args }) => {
+      const typeName = `${pascalCase(name)}Field`;
+      let definition = `((builder: ${getTypeName(type, { normalizeName: true, stripArrayType: true })}SelectionBuilder) => ${this.model.modelType.name}SelectorProxy)`;
+
+      // This makes me sad :(
+      if (args?.length) {
+        definition += ` & {
+${indentString(
+  args.map(arg => `${arg.name}: (${arg.name}: ${getTypeName(arg.type)}) => ${typeName};`).join('\n'),
+  2
+)}
+}`
+      }
+
+      return `type ${typeName} = ${definition};`;
+    }).join('\n')
+  }
+
   get proxyType() {
     const typeName = `${this.model.modelType.name}SelectorProxy`;
-    const nestedProxyGetters = this.modelNestedObjectFields.map(({ name, type }) =>
-      `${name}: (builder: ${getTypeName(type, { normalizeName: true, stripArrayType: true })}SelectionBuilder) => ${typeName};`
-    )
+    const nestedProxyGetters = this.modelNestedObjectFields.map(({ name }) => {
+      return `${name}: ${pascalCase(name)}Field;`
+    })
 
     const omits = [
       ...this.modelNestedObjectFields.map(({ name }) => `'${name}'`),
@@ -82,16 +109,19 @@ ${indentString(this.primitiveFields.map(({ name, type }) => `* - \`${name}\`: \`
       export type ${selectionBuilderTypeName} = (proxy: ${typeName}) => ${typeName};
       
       export function selectFrom${this.model.modelType.name}(build: ${selectionBuilderTypeName}) {
-        const selectedKeys: StringTree = ['__typename'${this.model.hasIdField ? `, '${this.idFieldName}'` : ''}];
+        const selections: Selection[] = [
+          { fieldName: '__typename' },
+          ${this.model.hasIdField ? `{ fieldName: '${this.idFieldName}' },` : ''}
+        ];
         
         const proxy: ${typeName} = new Proxy({}, {
           get(target, prop) {
             switch (prop) {${this.hasNestedObjects ? `\n${indentString(this.proxyGeneratorNestedObjectSwitchCases, 6)}` : ''}
               case 'primitives':
-                selectedKeys.push(...primitiveKeys);   
+                selections.push(...primitiveKeys.map(key => ({ fieldName: key })));   
                 break;
               default:
-                selectedKeys.push(prop as string);
+                selections.push({ fieldName: prop as string });
                 break;
             }
             
@@ -101,35 +131,41 @@ ${indentString(this.primitiveFields.map(({ name, type }) => `* - \`${name}\`: \`
         
         build(proxy);
         
-        return selectedKeys;
+        return selections;
       }
     `
   }
 
   get proxyGeneratorNestedObjectSwitchCases() {
-    return this.modelNestedObjectFields.map(({ name, type }) => {
+    return this.modelNestedObjectFields.map(({ name, type, args }) => {
       const fieldModelName = getTypeName(type, { stripArrayType: true, normalizeName: true });
 
       return `
         case '${name}':
-          return (build: ${fieldModelName}SelectionBuilder) => {
-            selectedKeys.push(prop as string, selectFrom${fieldModelName}(build));
+          const args: Record<string, any> = {};
+          
+          const builder = (build: ${fieldModelName}SelectionBuilder) => {
+            selections.push({ fieldName: prop as string, children: selectFrom${fieldModelName}(build), args });
+            
             return proxy;
-          }`;
+          }
+          ${args?.map(({ name, type }) => {
+            return `
+          builder.${name} = (value: ${getTypeName(type)}) => {
+            args.${name} = value;
+            return builder;
+          }
+`;
+          }).join('') || ''}
+          return builder;`;
     }).join('');
-  }
-
-  get stringTreeType() {
-    return dedent`
-      type StringTree = (string | StringTree)[];
-    `;
   }
 
   get code() {
     const segments = [
-      this.selectorFunctionImports,
+      this.imports,
+      this.nestedBuilderTypes,
       this.proxyType,
-      this.stringTreeType,
       this.proxyGenerator,
     ]
 
