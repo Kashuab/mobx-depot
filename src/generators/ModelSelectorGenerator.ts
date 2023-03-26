@@ -104,7 +104,7 @@ ${indentString(this.primitiveFields.map(({ name, type }) => `* - \`${name}\`: \`
     const selectionBuilderTypeName = `${this.model.modelType.name}SelectionBuilder`;
 
     return dedent`
-      const primitiveKeys = [${this.primitiveFields.map(f => `"${f.name}"`).join(', ')}];
+      const primitiveKeys: string[] = [${this.primitiveFields.map(f => `"${f.name}"`).join(', ')}];
       
       export type ${selectionBuilderTypeName} = (proxy: ${typeName}) => ${typeName};
       
@@ -141,7 +141,7 @@ ${indentString(this.primitiveFields.map(({ name, type }) => `* - \`${name}\`: \`
       const fieldModelName = getTypeName(type, { stripArrayType: true, normalizeName: true });
 
       return `
-        case '${name}':
+        case '${name}': {
           const args: Record<string, any> = {};
           
           const builder = (build: ${fieldModelName}SelectionBuilder) => {
@@ -157,7 +157,8 @@ ${indentString(this.primitiveFields.map(({ name, type }) => `* - \`${name}\`: \`
           }
 `;
           }).join('') || ''}
-          return builder;`;
+          return builder;
+        }`;
     }).join('');
   }
 
