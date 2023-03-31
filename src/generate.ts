@@ -1,6 +1,7 @@
 import {introspectSchema, isModelType, makeIntrospectionQuery} from "./makeIntrospectionQuery";
 import {getTypeName, ModelGenerator} from "./generators/ModelGenerator";
 import {
+  IntrospectionEnumType,
   IntrospectionInputObjectType,
   IntrospectionListTypeRef,
   IntrospectionNonNullTypeRef,
@@ -8,13 +9,14 @@ import {
   IntrospectionScalarType,
   IntrospectionType
 } from "graphql/utilities";
-import fs, {readFileSync} from 'fs';
+import fs, {readFileSync, writeFileSync} from 'fs';
 import {ScalarGenerator} from "./generators/ScalarGenerator";
 import {InputObjectInterfaceGenerator} from "./generators/InputObjectInterfaceGenerator";
 import {QueryGenerator} from "./generators/QueryGenerator";
 import {RootStoreGenerator} from "./generators/RootStoreGenerator";
 import { resolve } from 'path';
 import {generateUseInstanceHooks} from "./generators/UseInstanceGenerator";
+import {EnumGenerator} from "./generators/EnumGenerator";
 
 type GenerateOpts = {
   url: string;
@@ -48,6 +50,7 @@ export async function generate(opts: GenerateOpts) {
   generateInputObjectInterfaces(introspection);
   generateMutations(introspection);
   generateQueries(introspection);
+  generateEnums(introspection);
 
   if (writeReactUtilities) {
     generateHooks();
@@ -67,6 +70,13 @@ export async function generate(opts: GenerateOpts) {
     const rootStore = new RootStoreGenerator(models, { idFieldName });
   
     writeRootStoreToDisk(rootStore);
+  }
+
+  function generateEnums(query: IntrospectionQuery) {
+    const enums = query.__schema.types.filter(type => type.kind === 'ENUM') as IntrospectionEnumType[];
+    const generators = enums.map((enumType) => new EnumGenerator(enumType));
+
+    writeEnumsToDisk(generators);
   }
   
   function generateQueries(query: IntrospectionQuery) {
@@ -140,6 +150,16 @@ export async function generate(opts: GenerateOpts) {
 
   function withOutDir(path: string) {
     return resolve(outDir, path);
+  }
+
+  function writeEnumsToDisk(enumsGenerators: EnumGenerator[]) {
+    if (!fs.existsSync(withOutDir('depot/enums'))) {
+      fs.mkdirSync(withOutDir('depot/enums'), { recursive: true });
+    }
+
+    enumsGenerators.forEach(enumGenerator => {
+      fs.writeFileSync(withOutDir(`depot/enums/${enumGenerator.fileName}`), withDontEditWarning(enumGenerator.code));
+    });
   }
 
   function writeScalarsToDisk(scalars: ScalarGenerator[]) {

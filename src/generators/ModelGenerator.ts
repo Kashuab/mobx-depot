@@ -64,6 +64,25 @@ export class ModelGenerator {
     `
   }
 
+  get enumImports() {
+    const enums = this.modelType.fields.reduce((enums, field) => {
+      if (getTypeKind(field.type) === 'ENUM') {
+        const typeName = getTypeName(field.type, { stripArrayType: true });
+        if (enums.includes(typeName)) return enums;
+
+        enums.push(typeName);
+      }
+
+      return enums;
+    }, [] as string[]);
+
+    if (enums.length === 0) return '';
+
+    return dedent`
+    ${enums.map(enumName => `import { ${enumName} } from '../enums/${enumName}';`).join('\n')}
+    `
+  }
+
   get modelImports() {
     return this.requiredModels
       .map(model => {
@@ -78,6 +97,7 @@ export class ModelGenerator {
     return dedent`
       import { assignInstanceProperties, Selectable } from 'mobx-depot';
       ${this.scalarImports}
+      ${this.enumImports}
       ${this.modelImports}
     `;
   }

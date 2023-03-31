@@ -18,16 +18,23 @@ export class QueryGenerator {
     return `${this.className}.ts`;
   }
 
+  // TODO: This needs to be tested in regards to scalars and enums
   get variableImports() {
     const imports: string[] = [];
 
     this.field.args.forEach(field => {
+      const fieldTypeName = getTypeName(field.type, { normalizeName: true, stripArrayType: true });
+
       if (getTypeKind(field.type) === 'INPUT_OBJECT') {
-        imports.push(`import { ${getTypeName(field.type)} } from '../inputs/${getTypeName(field.type)}';`);
+        imports.push(`import { ${fieldTypeName} } from '../inputs/${getTypeName(field.type)}';`);
       }
 
       if (isScalarType(field.type) && !scalarIsPrimitive(field.type)) {
-        imports.push(`import { ${getTypeName(field.type)} } from '../scalars';`);
+        imports.push(`import { ${fieldTypeName} } from '../scalars';`);
+      }
+
+      if (getTypeKind(field.type) === 'ENUM') {
+        imports.push(`import { ${fieldTypeName} } from '../enums/${fieldTypeName}';`);
       }
     });
 
@@ -229,9 +236,9 @@ export class QueryGenerator {
     return indentString(dedent`
       async dispatch() {    
         this.setError(null);
-        this.setLoading(true);    
+        this.setLoading(true);
         
-        const cachePolicy = ${this.isMutationType ? '"network-only"' : "this.options.cachePolicy"};
+        const cachePolicy = ${this.isMutationType ? '"no-cache"' : "this.options.cachePolicy"};
         
         const promise = (async () => {
           const result = this.__client.request<${this.dataTypeName}${this.hasVariables ? `, ${this.variablesTypeName}` : ''}>(

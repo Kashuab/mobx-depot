@@ -3,7 +3,9 @@ import yargs from 'yargs';
 import {hideBin} from "yargs/helpers";
 import {generate} from "./generate";
 
-yargs(hideBin(process.argv))
+const argv = hideBin(process.argv).filter(s => s !== '--');
+
+yargs(argv)
   .command(
     'generate <url>',
     'Generate models based on an introspection of the provided schema',

@@ -20,15 +20,25 @@ export class InputObjectInterfaceGenerator {
         const typeName = getTypeName(field.type, { stripArrayType: true });
         if (scalars.includes(typeName)) return scalars;
 
-        if (!typeName) {
-          console.error(field.type);
-          throw new Error(`How is this a scalar?`);
-        }
-
         scalars.push(typeName);
       }
 
       return scalars;
+    }, [] as string[]);
+  }
+
+  get requiredEnums() {
+    return this.type.inputFields.reduce((enums, field) => {
+      const isEnum = getTypeKind(field.type) === 'ENUM';
+
+      if (isEnum) {
+        const typeName = getTypeName(field.type, { stripArrayType: true });
+        if (enums.includes(typeName)) return enums;
+
+        enums.push(typeName);
+      }
+
+      return enums;
     }, [] as string[]);
   }
 
@@ -55,6 +65,16 @@ export class InputObjectInterfaceGenerator {
     `
   }
 
+  get enumImports() {
+    if (this.requiredEnums.length === 0) return '';
+
+    return dedent`
+    ${this.requiredEnums.map(enumName => {
+      return `import { ${enumName} } from '../enums/${enumName}';`;
+    }).join('\n')}
+    `
+  }
+
   get inputImports() {
     if (this.requiredInputs.length === 0) return '';
 
@@ -64,10 +84,11 @@ export class InputObjectInterfaceGenerator {
   }
 
   get imports() {
-    if (!this.scalarImports && !this.inputImports) return '';
+    if (!this.scalarImports && !this.inputImports && !this.enumImports) return '';
 
     return dedent`
       ${this.inputImports}
+      ${this.enumImports}
       ${this.scalarImports}
     `;
   }
