@@ -1,7 +1,7 @@
 {
   "name": "mobx-depot",
   "description": "Generate MobX models from a GraphQL schema",
-  "version": "0.0.45",
+  "version": "0.0.46",
   "license": "MIT",
   "author": "Kyle Kashuba",
   "homepage": "https://github.com/KashubaK/mobx-depot",
@@ -29,7 +29,7 @@
   "scripts": {
     "build": "yarn build-cli; yarn build-client;",
     "build-client": "microbundle --no-compress --entry src/index.ts --format cjs,modern --target web --external mobx,graphql,react",
-    "build-cli": "microbundle --entry src/cli.ts --output dist/cli.js --format cjs --target node --external graphql-request",
+    "build-cli": "microbundle --entry src/cli.ts --output dist/cli.js --format cjs --target node",
     "bing": "ts-node --transpileOnly src/cli.ts -- generate http://localhost:3000/graphql --outDir example/models",
     "test": "jest"
   },
