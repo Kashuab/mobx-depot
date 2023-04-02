@@ -273,7 +273,6 @@ export class ModelGenerator {
       this.isRemoteGetter,
       this.isLocalGetter,
       this.footer,
-      this.selectorGenerator.code,
     ];
 
     return segments.join('\n');

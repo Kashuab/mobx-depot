@@ -42,7 +42,7 @@ export class QueryGenerator {
   }
 
   get payloadSelectorImport() {
-    return `import { ${this.payloadSelectorName}, ${this.selectionBuilderType} } from '../base/${this.fieldTypeName}BaseModel';`;
+    return `import { ${this.payloadSelectorName}, ${this.selectionBuilderType} } from '../base/selectors/${this.fieldTypeName}Selector';`;
   }
 
   get imports() {

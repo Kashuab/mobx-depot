@@ -1,3 +1,5 @@
+import {action, makeObservable, observable} from "mobx";
+
 export type KeyOf<T extends object> = Extract<keyof T, string>;
 
 type IdentifiableModelInstance<IDFieldName extends string> = {
@@ -47,7 +49,7 @@ type ResolveSource = 'remote' | 'local';
 export class RootStore<IDFieldName extends string, Models extends RootStoreModels<IDFieldName>, ModelName extends KeyOf<Models>> {
   private opts: RootStoreOpts<IDFieldName>;
 
-  private instances: Record<string, Record<string, InstanceType<Models[ModelName]>>> = {};
+  instances: Record<string, Record<string, InstanceType<Models[ModelName]>>> = {};
 
   private _models: Models | null = null;
   private readonly generateModels: () => Models;
@@ -56,11 +58,19 @@ export class RootStore<IDFieldName extends string, Models extends RootStoreModel
   }
 
   /**
-   * @param models A map of `{ "__typename": ModelClass }` for all resolvable types
+   * @param models A map of `{ "<__typename>": ModelClass }` for all resolvable types
    */
   constructor(models: () => Models, opts: RootStoreOpts<IDFieldName>) {
     this.generateModels = models;
     this.opts = opts;
+
+    makeObservable(this, {
+      instances: observable,
+      resolve: action,
+      update: action,
+      create: action,
+      replace: action,
+    })
   }
 
   get idFieldName() {

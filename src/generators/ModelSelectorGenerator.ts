@@ -1,4 +1,4 @@
-import {getTypeName, ModelGenerator, typeIsNullable} from "./ModelGenerator";
+import {getTypeKind, getTypeName, ModelGenerator, typeIsNullable} from "./ModelGenerator";
 import {referencesModel} from "../makeIntrospectionQuery";
 import dedent from "dedent";
 import {indentString} from "../lib/indentString";
@@ -29,19 +29,39 @@ export class ModelSelectorGenerator {
   get selectorFunctionImports() {
     return this.modelNestedObjectFields.map(({ type }) => {
       const modelName = getTypeName(type, { normalizeName: true, stripArrayType: true });
-      return `import { selectFrom${modelName}, ${modelName}SelectionBuilder } from "./${modelName}BaseModel"`
+      return `import { selectFrom${modelName}, ${modelName}SelectionBuilder } from "./${modelName}Selector"`
     }).join('\n');
   }
 
   get imports() {
     return dedent`
       import { Selection } from 'mobx-depot';
+      import { ${this.model.baseModelClassName} } from '../${this.model.baseModelClassName}';
       ${this.selectorFunctionImports}
+      ${this.nestedObjectArgsImports}
     `
   }
 
   get hasNestedObjects() {
     return this.modelNestedObjectFields.length > 0;
+  }
+
+  get nestedObjectArgsImports() {
+    return this.modelNestedObjectFields
+      .reduce((imports, { args }) => {
+        if (!args?.length) return imports;
+
+        args.forEach(arg => {
+          if (getTypeKind(arg.type) === 'ENUM') {
+            const typeName = getTypeName(arg.type, { normalizeName: true, stripArrayType: true });
+            imports.push(`import { ${typeName} } from '../../enums/${typeName}'`);
+          }
+        })
+
+        return imports;
+      }, [] as string[])
+      .filter(Boolean)
+      .join('\n');
   }
 
   get nestedObjectArgsTypes() {
@@ -145,6 +165,10 @@ ${indentString(this.primitiveFields.map(({ name, type }) => `* - \`${name}\`: \`
           }
         }`;
     }).join('');
+  }
+
+  get fileName() {
+    return `${this.model.modelType.name}Selector.ts`;
   }
 
   get code() {

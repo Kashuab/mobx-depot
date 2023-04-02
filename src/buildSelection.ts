@@ -1,6 +1,7 @@
 import {indentString} from "./lib/indentString";
 import {gqlStringify} from "./lib/gqlStringify";
 
+
 export type Selection = {
   fieldName: string;
   args?: { [key: string]: any };

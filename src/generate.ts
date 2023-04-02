@@ -174,12 +174,13 @@ export async function generate(opts: GenerateOpts) {
   }
   
   function writeModelsToDisk(models: ModelGenerator[], force = false) {
-    if (!fs.existsSync(withOutDir('depot/base'))) {
-      fs.mkdirSync(withOutDir('depot/base'), { recursive: true });
+    if (!fs.existsSync(withOutDir('depot/base/selectors'))) {
+      fs.mkdirSync(withOutDir('depot/base/selectors'), { recursive: true });
     }
   
     models.forEach(model => {
       fs.writeFileSync(withOutDir(`depot/base/${model.baseModelFileName}`), withDontEditWarning(model.baseModelCode));
+      fs.writeFileSync(withOutDir(`depot/base/selectors/${model.selectorGenerator.fileName}`), withDontEditWarning(model.selectorGenerator.code));
 
       const userEditablePath = withOutDir(`${model.userEditableModelFileName}`);
       if (!force && fs.existsSync(userEditablePath)) {

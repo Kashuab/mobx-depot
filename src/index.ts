@@ -6,3 +6,4 @@ export * from './react/useQuery';
 export * from './lib/assignInstanceProperties';
 export * from './decorators/Selectable';
 export * from './DepotGQLClient';
+export * from './enums';

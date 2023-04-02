@@ -211,5 +211,5 @@ describe('RootStore', () => {
     expect(updatedUser).toBe(user);
     expect(updatedUser.posts[0]).toBe(post);
     expect(updatedUser.posts[1]).toBe(secondPost);
-  })
+  });
 });

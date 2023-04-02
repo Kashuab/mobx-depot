@@ -1,5 +1,6 @@
 import {buildSelection} from "../buildSelection";
 import dedent from "dedent";
+import {defineEnum} from "../enums";
 
 describe('buildSelection', () => {
   it('should build a selection', () => {
@@ -74,6 +75,48 @@ describe('buildSelection', () => {
             id
             name
           }
+        }
+      }
+    `);
+  });
+
+  it('can handle enum field args', () => {
+    enum Sort {
+      ASCENDING = 'ASCENDING',
+    }
+
+    enum Limit {
+      TEN = 10,
+    }
+
+    defineEnum(Sort);
+    defineEnum(Limit);
+
+    const selection = buildSelection([
+      {
+        fieldName: 'todos',
+        children: [
+          {
+            fieldName: 'id',
+          },
+          {
+            fieldName: 'completed',
+          },
+        ],
+        args: {
+          limit: Limit.TEN,
+          completed: false,
+          test: "wow",
+          sort: Sort.ASCENDING,
+        }
+      }
+    ]);
+
+    expect(selection).toEqual(dedent`
+      {
+        todos(limit: 10, completed: false, test: "wow", sort: ASCENDING) {
+          id
+          completed
         }
       }
     `);
