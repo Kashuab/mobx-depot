@@ -48,7 +48,6 @@ export class QueryGenerator {
   get imports() {
     return [
       "import { makeAutoObservable } from 'mobx';",
-      "import { gql } from 'graphql-request';",
       "import { buildSelection, CachePolicy } from 'mobx-depot';",
       "import { getGraphQLClient } from '../rootStore';",
       `import { ${this.payloadModelName} } from '../../${this.payloadModelName}';`,
@@ -161,7 +160,7 @@ export class QueryGenerator {
   get documentGetter() {
     return indentString(dedent`
       get document() {
-        return gql\`
+        return \`
           ${this.isMutationType ? 'mutation' : 'query'} ${pascalCase(this.field.name)}${this.documentVariableDefinitions ? `(${this.documentVariableDefinitions})` : ''} {
             ${this.field.name}${this.documentVariables ? `(${this.documentVariables})` : ''} 
               \${this.selection}

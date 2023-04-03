@@ -10,6 +10,7 @@ export async function introspectSchema(filePath: string) {
   const query = await graphql({ schema, source: getIntrospectionQuery() });
 
   if (!('data' in query)) {
+    console.error(query);
     throw new Error(`Failed to introspect ${filePath}`);
   }
 

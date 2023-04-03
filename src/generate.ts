@@ -105,9 +105,7 @@ export async function generate(opts: GenerateOpts) {
   
   function generateMutations(query: IntrospectionQuery) {
     const mutationType = query.__schema.types.find(type => type.name === 'Mutation');
-    if (!mutationType) {
-      throw new Error('Expected mutationType to be defined');
-    }
+    if (!mutationType) return;
   
     if (!('fields' in mutationType)) {
       throw new Error('Expected mutationType to have fields');
@@ -121,6 +119,8 @@ export async function generate(opts: GenerateOpts) {
   function generateScalars(query: IntrospectionQuery) {
     const scalarTypes = query.__schema.types
       .filter(type => isScalarType(type) && !scalarIsPrimitive(type)) as IntrospectionScalarType[];
+
+    if (scalarTypes.length === 0) return;
   
     const generators = scalarTypes.map(type => new ScalarGenerator(type));
   
