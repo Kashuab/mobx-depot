@@ -1,5 +1,8 @@
 import { $mobx, isObservable, makeObservable } from 'mobx';
 
+const annotationsSymbol = Symbol("annotationsSymbol");
+const objectPrototype = Object.prototype;
+
 /**
  * A workaround for MobX's lack of support for subclassing in regards to `makeAutoObservable`.
  * Only use this when you want to use `makeAutoObservable` in conjunction with a subclass,
@@ -12,9 +15,6 @@ export function makeModelObservable<T extends object, AdditionalKeys extends Pro
   ...args: Parameters<typeof makeObservable<T, AdditionalKeys>>
 ) {
   const [target, overrides, options] = args;
-
-  const annotationsSymbol = Symbol("annotationsSymbol");
-  const objectPrototype = Object.prototype;
 
   // Make sure nobody called makeObservable/makeAutoObservable/extendObservable/makeModelObservable previously
   // (eg in parent constructor)

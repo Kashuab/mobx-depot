@@ -17,7 +17,7 @@ export function assignInstanceProperties<T extends object>(target: T, source: T,
     }
 
     // Ignore undefined target values, as they may not have been selected in GraphQL
-    if (sourceValue === undefined) continue;
+    if (sourceValue === undefined && targetValue !== undefined) continue;
 
     // Make sure we're only copying data over, no methods.
     if (typeof sourceValue === 'function') continue;

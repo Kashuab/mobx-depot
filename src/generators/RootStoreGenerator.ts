@@ -66,6 +66,8 @@ export function getRootStore() {
 
 export function initializeDepotClient(url: string, opts: ConstructorParameters<typeof DepotGQLClient>[1] = {}) {
   client = new DepotGQLClient(url, opts, rootStore);
+  
+  return client;
 }
     `;
   }

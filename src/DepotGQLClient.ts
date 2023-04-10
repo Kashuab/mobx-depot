@@ -17,6 +17,25 @@ export type DepotGQLClientInit = {
   defaultCachePolicy?: CachePolicy;
 }
 
+type Callbacks<IDFieldName extends string, Models extends RootStoreModels<IDFieldName>, ModelName extends KeyOf<Models>> = {
+  afterResolve: Callback<IDFieldName, Models, ModelName>[];
+}
+
+interface Query {
+  document: string;
+  variables?: Record<string, unknown>;
+}
+
+type CallbackPayload<IDFieldName extends string, Models extends RootStoreModels<IDFieldName>, ModelName extends KeyOf<Models>> = {
+  resolved: DeepResolved<IDFieldName, Models, ModelName, object>;
+  query: Query;
+}
+
+type Callback<IDFieldName extends string, Models extends RootStoreModels<IDFieldName>, ModelName extends KeyOf<Models>>
+  = (payload: CallbackPayload<IDFieldName, Models, ModelName>) => void;
+
+type CallbackName = keyof Callbacks<any, any, any>;
+
 /**
  * A wrapper around GraphQLClient from `graphql-request` that adds a cache layer.
  */
@@ -25,6 +44,9 @@ export class DepotGQLClient<IDFieldName extends string, Models extends RootStore
   gqlClient: GraphQLClient;
   defaultCachePolicy: CachePolicy;
   rootStore: RootStore<IDFieldName, Models, ModelName>;
+  callbacks: Callbacks<IDFieldName, Models, ModelName> = {
+    afterResolve: []
+  };
 
   constructor(url: string, options: DepotGQLClientInit & RequestConfig = {}, rootStore: RootStore<IDFieldName, Models, ModelName>) {
     this.defaultCachePolicy = options.defaultCachePolicy || "cache-and-network";
@@ -33,6 +55,18 @@ export class DepotGQLClient<IDFieldName extends string, Models extends RootStore
     // Make sure not to pass unused options to GraphQLClient
     delete options.defaultCachePolicy;
     this.gqlClient = new GraphQLClient(url, options);
+  }
+
+  on(callbackName: CallbackName, callback: Callback<IDFieldName, Models, ModelName>) {
+    this.callbacks[callbackName].push(callback);
+
+    return () => {
+      this.callbacks[callbackName].splice(this.callbacks[callbackName].indexOf(callback), 1);
+    }
+  }
+
+  emit(callbackName: CallbackName, resolved: DeepResolved<IDFieldName, Models, ModelName, object>, query: Query) {
+    this.callbacks[callbackName].forEach(callback => callback({ resolved, query }));
   }
 
   async *request<T extends {} = {}, V extends Variables = Variables>(
@@ -70,6 +104,8 @@ export class DepotGQLClient<IDFieldName extends string, Models extends RootStore
       }
 
       yield resolved;
+
+      this.emit('afterResolve', resolved, { document: query, variables });
     }
   }
 

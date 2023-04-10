@@ -46,6 +46,15 @@ type RootStoreOpts<IDFieldName extends string> = {
 
 type ResolveSource = 'remote' | 'local';
 
+type RootStoreCallbacks<IDFieldName extends string, Models extends RootStoreModels<IDFieldName>, ModelName extends KeyOf<Models>> = {
+  afterCreate: RootStoreCallback<IDFieldName, Models, ModelName>[];
+  afterUpdate: RootStoreCallback<IDFieldName, Models, ModelName>[];
+}
+
+type RootStoreCallback<IDFieldName extends string, Models extends RootStoreModels<IDFieldName>, ModelName extends KeyOf<Models>> = (instance: InstanceType<Models[ModelName]>) => void;
+
+type RootStoreCallbackName = keyof RootStoreCallbacks<any, any, any>;
+
 export class RootStore<IDFieldName extends string, Models extends RootStoreModels<IDFieldName>, ModelName extends KeyOf<Models>> {
   private opts: RootStoreOpts<IDFieldName>;
 
@@ -56,6 +65,11 @@ export class RootStore<IDFieldName extends string, Models extends RootStoreModel
   private get models() {
     return this._models ||= this.generateModels();
   }
+
+  private callbacks: RootStoreCallbacks<IDFieldName, Models, ModelName> = {
+    afterCreate: [],
+    afterUpdate: []
+  };
 
   /**
    * @param models A map of `{ "<__typename>": ModelClass }` for all resolvable types
@@ -198,6 +212,20 @@ export class RootStore<IDFieldName extends string, Models extends RootStoreModel
 
     this.keep(source);
     this.deepReplace(target, source);
+  }
+
+  public on(name: RootStoreCallbackName, callback: RootStoreCallback<IDFieldName, Models, ModelName>) {
+    this.callbacks[name].push(callback);
+
+    return () => {
+      this.callbacks[name].splice(this.callbacks[name].indexOf(callback), 1);
+    }
+  }
+
+  public emit(name: RootStoreCallbackName, instance: InstanceType<Models[ModelName]>) {
+    this.callbacks[name].forEach((callback) => {
+      callback(instance);
+    });
   }
 
   private instanceIsIdentifiable(
