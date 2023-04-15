@@ -131,7 +131,7 @@ describe('RootStore', () => {
     store.replace(originalPost, newPost);
 
     expect(resolvedUser.posts[0]).toBe(newPost);
-    expect(store.get(PostModel, originalPost.id)).toBe(newPost);
+    expect(store.find(PostModel, originalPost.id)).toBe(newPost);
   });
 
   it('deep merges resolved data', () => {
@@ -212,4 +212,140 @@ describe('RootStore', () => {
     expect(updatedUser.posts[0]).toBe(post);
     expect(updatedUser.posts[1]).toBe(secondPost);
   });
+
+  it('can return a list of instances by a given predicate', () => {
+    const posts = [
+      {
+        __typename: 'Post',
+        id: '1',
+        title: 'Hello world',
+      },
+      {
+        __typename: 'Post',
+        id: '2',
+        title: 'Hello world 2',
+      },
+      {
+        __typename: 'Post',
+        id: '3',
+        title: 'Hello world 3',
+      },
+      {
+        __typename: 'Post',
+        id: '4',
+        title: 'Something else',
+      }
+    ];
+
+    store.resolve(posts);
+
+    const foundPosts = store.where(PostModel, (post) => post.title.includes('Hello world'));
+
+    expect(foundPosts).toHaveLength(3);
+    expect(foundPosts[0].title).toBe('Hello world');
+    expect(foundPosts[1].title).toBe('Hello world 2');
+    expect(foundPosts[2].title).toBe('Hello world 3');
+  });
+
+  it('can find a single instance by a given predicate', () => {
+    const posts = [
+      {
+        __typename: 'Post',
+        id: '1',
+        title: 'Hello world',
+      },
+      {
+        __typename: 'Post',
+        id: '2',
+        title: 'Hello world 2',
+      },
+      {
+        __typename: 'Post',
+        id: '3',
+        title: 'Hello world 3',
+      },
+      {
+        __typename: 'Post',
+        id: '4',
+        title: 'Something else',
+      }
+    ];
+
+    store.resolve(posts);
+
+    const foundPost = store.findBy(PostModel, (post) => post.title.includes('Hello world 2'));
+    if (!foundPost) {
+      throw new Error('Post not found');
+    }
+
+    expect(foundPost).toBeDefined();
+    expect(foundPost).toBeInstanceOf(PostModel);
+    expect(foundPost.title).toBe('Hello world 2');
+  });
+
+  it('can return a list of instances by a given model', () => {
+    const posts = [
+      {
+        __typename: 'Post',
+        id: '1',
+        title: 'Hello world',
+      },
+      {
+        __typename: 'User',
+        id: '3',
+        firstName: 'John',
+      },
+      {
+        __typename: 'Post',
+        id: '2',
+        title: 'Hello world 2',
+      },
+      {
+        __typename: 'User',
+        id: '4',
+        firstName: 'Joe',
+      }
+    ];
+
+    store.resolve(posts);
+
+    const foundPosts = store.findAll(PostModel);
+
+    expect(foundPosts).toHaveLength(2);
+    expect(foundPosts[0].title).toBe('Hello world');
+    expect(foundPosts[1].title).toBe('Hello world 2');
+  });
+
+  it('can remove an instance', () => {
+    const user = store.resolve({
+      __typename: 'User',
+      id: '1',
+      firstName: 'John',
+      posts: [
+        {
+          __typename: 'Post',
+          id: '1',
+          title: 'Hello world',
+        },
+        {
+          __typename: 'Post',
+          id: '2',
+          title: 'Hello world 2',
+        },
+        {
+          __typename: 'Post',
+          id: '3',
+          title: 'Hello world 3',
+        }
+      ]
+    } as const);
+
+    const postToRemove = user.posts[1];
+    store.remove(postToRemove);
+
+    expect(store.find(PostModel, '2')).toBe(null);
+    expect(user.posts).toHaveLength(2);
+    expect(user.posts[0].title).toBe('Hello world');
+    expect(user.posts[1].title).toBe('Hello world 3');
+  })
 });

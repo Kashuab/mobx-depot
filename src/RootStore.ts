@@ -1,4 +1,4 @@
-import {action, makeObservable, observable} from "mobx";
+import {action, computed, makeObservable, observable} from "mobx";
 
 export type KeyOf<T extends object> = Extract<keyof T, string>;
 
@@ -26,7 +26,12 @@ type Resolvable<Typename extends string, IDFieldName extends string> = {
   [key in IDFieldName]: string;
 }
 
-export type DeepResolved<IDFieldName extends string, Models extends RootStoreModels<IDFieldName>, ModelName extends KeyOf<Models>, Data extends object> =
+export type DeepResolved<
+  IDFieldName extends string,
+  Models extends RootStoreModels<IDFieldName>,
+  ModelName extends KeyOf<Models>,
+  Data extends object
+> =
   Data extends Resolvable<ModelName, IDFieldName>
     ? InstanceType<Models[Data['__typename']]>
     : {
@@ -46,12 +51,20 @@ type RootStoreOpts<IDFieldName extends string> = {
 
 type ResolveSource = 'remote' | 'local';
 
-type RootStoreCallbacks<IDFieldName extends string, Models extends RootStoreModels<IDFieldName>, ModelName extends KeyOf<Models>> = {
+type RootStoreCallbacks<
+  IDFieldName extends string,
+  Models extends RootStoreModels<IDFieldName>,
+  ModelName extends KeyOf<Models>
+> = {
   afterCreate: RootStoreCallback<IDFieldName, Models, ModelName>[];
   afterUpdate: RootStoreCallback<IDFieldName, Models, ModelName>[];
 }
 
-type RootStoreCallback<IDFieldName extends string, Models extends RootStoreModels<IDFieldName>, ModelName extends KeyOf<Models>> = (instance: InstanceType<Models[ModelName]>) => void;
+type RootStoreCallback<
+  IDFieldName extends string,
+  Models extends RootStoreModels<IDFieldName>,
+  ModelName extends KeyOf<Models>
+> = (instance: InstanceType<Models[ModelName]>) => void;
 
 type RootStoreCallbackName = keyof RootStoreCallbacks<any, any, any>;
 
@@ -72,7 +85,7 @@ export class RootStore<IDFieldName extends string, Models extends RootStoreModel
   };
 
   /**
-   * @param models A map of `{ "<__typename>": ModelClass }` for all resolvable types
+   * @param models A function that returns a map of `{ "<__typename>": ModelClass }` for all resolvable types
    */
   constructor(models: () => Models, opts: RootStoreOpts<IDFieldName>) {
     this.generateModels = models;
@@ -80,14 +93,14 @@ export class RootStore<IDFieldName extends string, Models extends RootStoreModel
 
     makeObservable(this, {
       instances: observable,
-      resolve: action,
-      update: action,
       create: action,
-      replace: action,
+      update: action,
+      remove: action,
+      resolve: action,
     })
   }
 
-  get idFieldName() {
+  private get idFieldName() {
     return this.opts.idFieldName;
   }
 
@@ -118,11 +131,10 @@ export class RootStore<IDFieldName extends string, Models extends RootStoreModel
 
     if (this.isResolvable(data)) {
       const Model = this.getModel(data.__typename);
-      const store = this.getInstanceStore(Model);
       const id = this.getInstanceId(resolvedData);
 
       if (id) {
-        const instance = store[id];
+        const instance = this.find(Model, id);
 
         if (instance) {
           // TODO: Types
@@ -137,27 +149,16 @@ export class RootStore<IDFieldName extends string, Models extends RootStoreModel
     return resolvedData;
   }
 
-  public get<T extends Models[ModelName]>(Model: T, id: string): InstanceType<T> | null {
-    return this.getInstanceStore(Model)[id] || null;
-  }
-
   public update<T extends Models[ModelName]>(
     Model: T,
     id: string,
     data: Partial<InstanceType<T>>,
     source: ResolveSource = 'local'
   ) {
-    const instance = this.get(Model, id);
+    const instance = this.find(Model, id);
     if (!instance) throw new Error('Instance not found'); // TODO: Better errors
 
-    // Handle potential conflicts with GraphQL fields
-    if ('assign' in instance) {
-      instance.assign(data);
-    } else if ('_assign' in instance) {
-      instance._assign(data);
-    } else {
-      throw new Error(`${Model.name} does not have an assign method`);
-    }
+    this.assignInstanceData(instance, data)
 
     instance.__setSource(source);
 
@@ -174,13 +175,17 @@ export class RootStore<IDFieldName extends string, Models extends RootStoreModel
     instance.__setSource(source);
 
     const store = this.getInstanceStore(Model);
-    const id = this.getInstanceId(instance) || this.generateModelId(Model);
+    let id = this.getInstanceId(instance);
+
+    if (!id) {
+      id = this.generateModelId(Model);
+
+      this.assignInstanceData(instance, { [this.idFieldName]: id })
+    }
 
     if (store[id]) {
       throw new Error('Instance already exists'); // TODO: Better errors
     }
-
-    if (!id) throw new Error('Model must have an id property'); // TODO: Better errors
 
     store[id] = instance;
     this.models[Model.name as keyof Models] = Model;
@@ -222,7 +227,80 @@ export class RootStore<IDFieldName extends string, Models extends RootStoreModel
     }
   }
 
-  public emit(name: RootStoreCallbackName, instance: InstanceType<Models[ModelName]>) {
+  public find<T extends Models[ModelName]>(Model: T, id: string): InstanceType<T> | null {
+    return this.getInstanceStore(Model)[id] || null;
+  }
+
+  /**
+   * Find all instances of a given model
+   */
+  public findAll<T extends Models[ModelName]>(Model: T): InstanceType<T>[] {
+    return Object.values(this.getInstanceStore(Model));
+  }
+
+  /**
+   * Find an instance of a given model by a predicate
+   *
+   * ```ts
+   * const user = store.findBy(User, (user) => user.name === 'John');
+   * ```
+   *
+   * @param Model
+   * @param predicate
+   */
+  public findBy<T extends Models[ModelName]>(Model: T, predicate: (instance: InstanceType<T>) => boolean): InstanceType<T> | null {
+    const instances = this.findAll(Model);
+
+    return instances.find(predicate) || null;
+  }
+
+  /**
+   * Find all instances of a given model by a predicate
+   *
+   * ```ts
+   * const onlineUsers = store.where(User, (user) => user.isOnline);
+   * ```
+   *
+   * @param Model
+   * @param predicate
+   */
+  public where<T extends Models[ModelName]>(Model: T, predicate: (instance: InstanceType<T>) => boolean): InstanceType<T>[] {
+    const instances = this.findAll(Model);
+
+    return instances.filter(predicate);
+  }
+
+  /**
+   * Remove an instance from the store, replacing all references to it with `null`.
+   * @param instance
+   */
+  public remove<T extends Models[ModelName]>(instance: InstanceType<T>) {
+    if (!this.modelRecognized(instance.constructor)) {
+      throw new Error(`Model not recognized: ${(instance.constructor as any).name}`);
+    }
+
+    const id = this.getInstanceId(instance);
+    if (!id) throw new Error('Instance must have an id property'); // TODO: Better errors
+
+    delete this.getInstanceStore(instance.constructor)[id];
+    this.deepReplace(instance, undefined);
+  }
+
+  private assignInstanceData(instance: ModelInstance<IDFieldName>, data: Partial<ModelInstance<IDFieldName>>) {
+    const assign = (() => {
+      if ('assign' in instance) {
+        return instance.assign;
+      } else if ('_assign' in instance) {
+        return instance._assign;
+      }
+
+      throw new Error(`Instance does not have an assign method`);
+    })();
+
+    assign(data);
+  }
+
+  private emit(name: RootStoreCallbackName, instance: InstanceType<Models[ModelName]>) {
     this.callbacks[name].forEach((callback) => {
       callback(instance);
     });
@@ -256,7 +334,7 @@ export class RootStore<IDFieldName extends string, Models extends RootStoreModel
   /**
    * Find any reference to `target` and replace it with `source`.
    */
-  private deepReplace<T extends Models[ModelName]>(target: InstanceType<T>, source: InstanceType<T>) {
+  private deepReplace<T extends Models[ModelName]>(target: InstanceType<T>, source: InstanceType<T> | undefined) {
     const allStores = Object.values(this.instances);
     const injected: any[] = [];
 
@@ -282,6 +360,10 @@ export class RootStore<IDFieldName extends string, Models extends RootStoreModel
 
             return value;
           });
+
+          if (source === undefined) {
+            obj[key] = obj[key].filter((value: any) => value !== undefined);
+          }
         } else if (typeof obj[key] === 'object') {
           inject(obj[key]);
         }
@@ -310,7 +392,7 @@ export class RootStore<IDFieldName extends string, Models extends RootStoreModel
 
     store[id] = instance;
   }
-  
+
   private getInstanceStore<T extends Models[ModelName]>(Model: T) {
     const store = this.instances[Model.name];
     if (!store) {
@@ -333,7 +415,7 @@ export class RootStore<IDFieldName extends string, Models extends RootStoreModel
     return !(typeof data.__typename !== 'string' || !(data.__typename in this.models));
   }
 
-  private modelRecognized(Model: any): Model is Models[ModelName] {
+  public modelRecognized(Model: any): Model is Models[ModelName] {
     return Object.values(this.models).some(StoredModel => StoredModel === Model);
   }
 
@@ -341,7 +423,7 @@ export class RootStore<IDFieldName extends string, Models extends RootStoreModel
     const generate = () => `__$depot_auto_id:${Math.random().toString(36).substring(2)}`;
     let idAttempt = generate();
 
-    while (this.get(Model, idAttempt)) {
+    while (this.find(Model, idAttempt)) {
       idAttempt = generate();
     }
 
