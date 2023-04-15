@@ -36,7 +36,12 @@ export async function generate(opts: GenerateOpts) {
     } else if (url.endsWith('.graphql')) {
       return await introspectSchema(url);
     } else if (url.endsWith('.json')) {
-      return JSON.parse(readFileSync(url, 'utf-8')) as IntrospectionQuery;
+      const query = JSON.parse(readFileSync(url, 'utf-8')) as { data: IntrospectionQuery } | IntrospectionQuery;
+
+      if ('data' in query) return query.data;
+      if ('__schema' in query) return query;
+
+      throw new Error(`Unable to get introspection from JSON file`);
     } else {
       throw new Error(`Unsupported source: ${url}`);
     }
