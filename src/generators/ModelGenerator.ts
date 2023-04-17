@@ -46,7 +46,7 @@ export class ModelGenerator {
       const isCustomScalar = isScalarType(field.type) && !scalarIsPrimitive(field.type);
 
       if (isCustomScalar) {
-        const typeName = getTypeName(field.type);
+        const typeName = getTypeName(field.type, { normalizeName: true, stripArrayType: true });
         if (scalars.includes(typeName)) return scalars;
 
         scalars.push(typeName);
@@ -90,6 +90,13 @@ export class ModelGenerator {
 
         return `import { ${className} } from "../../${className}"`
       })
+      .reduce((imports, current) => {
+        if (imports.includes(current)) return imports;
+
+        imports.push(current);
+
+        return imports;
+      }, [] as string[])
       .join('\n');
   }
 

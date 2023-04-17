@@ -27,10 +27,16 @@ export class ModelSelectorGenerator {
   }
 
   get selectorFunctionImports() {
-    return this.modelNestedObjectFields.map(({ type }) => {
-      const modelName = getTypeName(type, { normalizeName: true, stripArrayType: true });
-      return `import { selectFrom${modelName}, ${modelName}SelectionBuilder } from "./${modelName}Selector"`
-    }).join('\n');
+    return this.modelNestedObjectFields
+      .map(({ type }) => {
+        const modelName = getTypeName(type, { normalizeName: true, stripArrayType: true });
+        return `import { selectFrom${modelName}, ${modelName}SelectionBuilder } from "./${modelName}Selector"`
+      })
+      .reduce((imports, current) => {
+        if (!imports.includes(current)) imports.push(current);
+        return imports;
+      }, [] as string[])
+      .join('\n');
   }
 
   get imports() {
@@ -52,9 +58,13 @@ export class ModelSelectorGenerator {
         if (!args?.length) return imports;
 
         args.forEach(arg => {
+          let importStatement;
+
           if (getTypeKind(arg.type) === 'ENUM') {
             const typeName = getTypeName(arg.type, { normalizeName: true, stripArrayType: true });
-            imports.push(`import { ${typeName} } from '../../enums/${typeName}'`);
+            const importStatement = `import { ${typeName} } from '../../enums/${typeName}'`;
+
+            if (!imports.includes(importStatement)) imports.push(importStatement);
           }
         })
 

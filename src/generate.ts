@@ -85,7 +85,8 @@ export async function generate(opts: GenerateOpts) {
   }
   
   function generateQueries(query: IntrospectionQuery) {
-    const queryType = query.__schema.types.find(type => type.name === 'Query');
+    const queryTypeName = query.__schema.queryType.name;
+    const queryType = query.__schema.types.find(type => type.name === queryTypeName);
     if (!queryType) {
       throw new Error('Expected queryType to be defined');
     }
