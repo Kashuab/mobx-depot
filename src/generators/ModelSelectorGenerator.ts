@@ -30,9 +30,16 @@ export class ModelSelectorGenerator {
     return this.modelNestedObjectFields
       .map(({ type }) => {
         const modelName = getTypeName(type, { normalizeName: true, stripArrayType: true });
+
+        // Types can have fields that reference their own type, so in that case
+        // we don't want to import those functions since they'll already be declared
+        if (modelName === this.model.modelType.name) return;
+
         return `import { selectFrom${modelName}, ${modelName}SelectionBuilder } from "./${modelName}Selector"`
       })
+      .filter(Boolean)
       .reduce((imports, current) => {
+        if (!current) return imports;
         if (!imports.includes(current)) imports.push(current);
         return imports;
       }, [] as string[])

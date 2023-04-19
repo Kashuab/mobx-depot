@@ -104,7 +104,7 @@ export class QueryGenerator {
   get constructorFunction() {
     return indentString(
       [
-        `constructor(${this.hasVariables ? `variables: ${this.variablesTypeName}, ` : ''}select: ${this.selectionBuilderType}, options: Options = {}) {`,
+        `constructor(${this.hasVariables ? `variables: ${this.variablesTypeName} | null, ` : ''}select: ${this.selectionBuilderType}, options: Options = {}) {`,
         indentString("this.options = options;", 2),
         this.hasVariables && indentString("this.variables = variables;", 2),
         indentString(`this.selection = buildSelection(${this.payloadSelectorName}(select));`, 2),
@@ -119,7 +119,7 @@ export class QueryGenerator {
     return indentString(
       [
         '__client = getGraphQLClient();',
-        this.hasVariables && `variables: ${this.variablesTypeName};`,
+        this.hasVariables && `variables: ${this.variablesTypeName} | null;`,
         'selection: string;',
         'loading = false;',
         'error: Error | null = null;',
@@ -233,7 +233,11 @@ export class QueryGenerator {
 
   get dispatchMethod() {
     return indentString(dedent`
-      async dispatch() {    
+      async dispatch(${this.hasVariables ? 'variables = this.variables' : ''}) {
+        ${this.hasVariables ? `if (!variables) {
+          throw new Error("${this.className} was dispatched without variables");
+        }` : ''}
+      
         this.setError(null);
         this.setLoading(true);
         
@@ -241,7 +245,7 @@ export class QueryGenerator {
         
         const promise = (async () => {
           const result = this.__client.request<${this.dataTypeName}${this.hasVariables ? `, ${this.variablesTypeName}` : ''}>(
-            { document: this.document${this.hasVariables ? ', variables: this.variables' : ''}, cachePolicy },
+            { document: this.document${this.hasVariables ? ', variables' : ''}, cachePolicy },
           );
           
           let resultData: ${this.dataTypeName} | null = null;
@@ -288,8 +292,7 @@ export class QueryGenerator {
       this.constructorFunction,
       this.documentGetter,
       this.setLoadingMethod,
-      // TODO: Is this needed for anything?
-      // this.hasVariables && this.setVariablesMethod,
+      this.hasVariables && this.setVariablesMethod,
       this.setDataMethod,
       this.setPromiseMethod,
       this.setErrorMethod,

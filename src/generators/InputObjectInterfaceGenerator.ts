@@ -48,6 +48,9 @@ export class InputObjectInterfaceGenerator {
 
       if (isInput) {
         const typeName = getTypeName(field.type, { stripArrayType: true });
+
+        // Input objects can reference themselves, avoid importing what we already have
+        if (typeName == this.interfaceName) return inputs;
         if (inputs.includes(typeName)) return inputs;
 
         inputs.push(typeName);

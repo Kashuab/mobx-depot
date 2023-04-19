@@ -1,12 +1,18 @@
 import {useState} from "react";
 
-// TODO: Better types
+// TODO: There's a lot of similarity between this and useQuery
+
 interface IMutation {
   data: unknown;
   error: Error | null;
   loading: boolean;
   promise: Promise<unknown> | null;
   dispatch: () => Promise<unknown>;
+}
+
+interface IMutationWithVariables<Variables = any> extends IMutation {
+  variables: Variables
+  dispatch: (variables?: Variables) => Promise<unknown>;
 }
 
 type UseMutationOpts<Data> = {
@@ -20,14 +26,19 @@ type UseMutationOpts<Data> = {
  *
  * @param generate A function that returns a `Mutation` instance.
  */
-export function useMutation<Mutation extends IMutation, Data extends Exclude<Mutation['data'], null>, GenerateArgs extends any[]>(
-  generate: (...args: GenerateArgs) => Mutation,
+export function useMutation<
+  Mutation extends IMutation | IMutationWithVariables,
+  Data extends Exclude<Mutation['data'], null>
+>(
+  generate: () => Mutation,
   opts: UseMutationOpts<Data> = {},
 ) {
   const [mutation, setMutation] = useState<Mutation | null>(null);
 
-  const dispatch = async (...args: GenerateArgs): Promise<Data> => {
-    const newMutation = generate(...args);
+  const dispatch = async (
+    variables?: Mutation extends IMutationWithVariables ? Exclude<Mutation['variables'], null> : never
+  ): Promise<Data> => {
+    const newMutation = generate();
 
     setMutation(newMutation);
 
@@ -39,7 +50,7 @@ export function useMutation<Mutation extends IMutation, Data extends Exclude<Mut
     } else {
       // Automatically mutate if the generate function didn't call it already.
       // Is this reliable? :shrug:
-      data = await newMutation.dispatch() as Data;
+      data = await newMutation.dispatch(variables) as Data;
     }
 
     opts.onSuccess?.(data);

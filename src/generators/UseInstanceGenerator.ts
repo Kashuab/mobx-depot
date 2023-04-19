@@ -16,7 +16,7 @@ export function generateUseInstanceHooks() {
     export function useInstance<ModelType extends RootStoreModel>(Model: ModelType, id: string) {      
       const rootStore = getRootStore();
       
-      return rootStore.get(Model, id);
+      return rootStore.find(Model, id);
     }
   `
 }

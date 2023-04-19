@@ -9,20 +9,25 @@ interface IQuery {
   dispatch: () => Promise<unknown>;
 }
 
+interface IQueryWithVariables<Variables = any> extends IQuery {
+  variables: Variables
+  dispatch: (variables?: Variables) => Promise<unknown>;
+}
+
 type UseQueryOpts = {
   lazy?: boolean;
 }
 /**
  * @param generate A function that returns a `Query` instance.
  */
-export function useQuery<Query extends IQuery, Data extends Exclude<Query['data'], null>>(
+export function useQuery<Query extends IQuery | IQueryWithVariables, Data extends Exclude<Query['data'], null>>(
   generate: () => Query,
   opts: UseQueryOpts = {},
 ) {
   const { lazy = false } = opts;
   const [query, setQuery] = useState<Query | null>(null);
 
-  const dispatch = async (): Promise<Data> => {
+  const dispatch = async (variables?: Query extends IQueryWithVariables ? Exclude<Query['variables'], null> : never): Promise<Data> => {
     const newQuery = generate();
 
     setQuery(newQuery);
@@ -34,7 +39,7 @@ export function useQuery<Query extends IQuery, Data extends Exclude<Query['data'
 
     // Automatically mutate if the generate function didn't call it already.
     // Is this reliable? :shrug:
-    return await newQuery.dispatch() as Data;
+    return await newQuery.dispatch(variables) as Data;
   }
 
   useEffect(() => {
