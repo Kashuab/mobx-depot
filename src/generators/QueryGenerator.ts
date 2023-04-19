@@ -8,10 +8,12 @@ import {isScalarType, scalarIsPrimitive} from "../generate";
 export class QueryGenerator {
   field: IntrospectionField;
   isMutationType: boolean;
+  writeReactUtilities: boolean;
   
-  constructor(field: IntrospectionField, isMutationType: boolean) {
+  constructor(field: IntrospectionField, isMutationType: boolean, writeReactUtilities: boolean) {
     this.field = field;
     this.isMutationType = isMutationType;
+    this.writeReactUtilities = writeReactUtilities;
   }
 
   get fileName() {
@@ -315,7 +317,7 @@ export class QueryGenerator {
       this.setErrorMethod,
       this.dispatchMethod,
       this.footer,
-      this.hook
+      this.writeReactUtilities && this.hook
     ].filter(Boolean);
 
     return segments.join('\n');

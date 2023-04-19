@@ -95,7 +95,7 @@ export async function generate(opts: GenerateOpts) {
       throw new Error('Expected queryType to have fields');
     }
   
-    const generators = queryType.fields.map(field => new QueryGenerator(field, false));
+    const generators = queryType.fields.map(field => new QueryGenerator(field, false, writeReactUtilities));
   
     writeQueriesToDisk(generators);
   }
@@ -117,7 +117,7 @@ export async function generate(opts: GenerateOpts) {
       throw new Error('Expected mutationType to have fields');
     }
   
-    const generators = mutationType.fields.map(field => new QueryGenerator(field, true));
+    const generators = mutationType.fields.map(field => new QueryGenerator(field, true, writeReactUtilities));
   
     writeMutationsToDisk(generators);
   }
