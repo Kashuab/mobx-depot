@@ -15,7 +15,7 @@ interface IMutationWithVariables<Variables = any> extends IMutation {
   dispatch: (variables?: Variables) => Promise<unknown>;
 }
 
-type UseMutationOpts<Data> = {
+export type UseMutationOpts<Data> = {
   onSuccess?: (data: Data) => void;
 }
 

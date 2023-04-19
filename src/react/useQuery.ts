@@ -14,15 +14,16 @@ interface IQueryWithVariables<Variables = any> extends IQuery {
   dispatch: (variables?: Variables) => Promise<unknown>;
 }
 
-type UseQueryOpts = {
+export type UseQueryOpts<Data> = {
   lazy?: boolean;
+  onSuccess?: (data: Data) => void;
 }
 /**
  * @param generate A function that returns a `Query` instance.
  */
 export function useQuery<Query extends IQuery | IQueryWithVariables, Data extends Exclude<Query['data'], null>>(
   generate: () => Query,
-  opts: UseQueryOpts = {},
+  opts: UseQueryOpts<Data> = {},
 ) {
   const { lazy = false } = opts;
   const [query, setQuery] = useState<Query | null>(null);
@@ -32,14 +33,20 @@ export function useQuery<Query extends IQuery | IQueryWithVariables, Data extend
 
     setQuery(newQuery);
 
+    let data: Data;
+
     if (newQuery.promise) {
       // If the Query is already in progress, await its promise
-      return await newQuery.promise as Data;
+      data = await newQuery.promise as Data;
+    } else {
+      // Automatically mutate if the generate function didn't call it already.
+      // Is this reliable? :shrug:
+      data = await newQuery.dispatch(variables) as Data;
     }
 
-    // Automatically mutate if the generate function didn't call it already.
-    // Is this reliable? :shrug:
-    return await newQuery.dispatch(variables) as Data;
+    opts.onSuccess?.(data);
+
+    return data;
   }
 
   useEffect(() => {

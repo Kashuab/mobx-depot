@@ -48,7 +48,7 @@ export class QueryGenerator {
   get imports() {
     return [
       "import { makeAutoObservable } from 'mobx';",
-      "import { buildSelection, CachePolicy } from 'mobx-depot';",
+      `import { buildSelection, CachePolicy, use${this.isMutationType ? 'Mutation' : 'Query'}, Use${this.isMutationType ? 'Mutation' : 'Query'}Opts } from 'mobx-depot';`,
       "import { getGraphQLClient } from '../rootStore';",
       `import { ${this.payloadModelName} } from '../../${this.payloadModelName}';`,
       this.payloadSelectorImport,
@@ -281,6 +281,23 @@ export class QueryGenerator {
     return '}';
   }
 
+  get hook() {
+    const type = this.isMutationType ? 'Mutation' : 'Query';
+    const hookTypeName = `Use${this.className}${type}Opts`;
+
+    return dedent`
+
+      type ${hookTypeName} = Options & Use${type}Opts<${this.dataTypeName}>;
+
+      export function use${this.className}(${this.hasVariables ? `variables: ${this.variablesTypeName} | null, ` : ''}select: ${this.selectionBuilderType}, opts: ${hookTypeName} = {}) {
+        return use${type}(
+          () => new ${this.className}(${this.hasVariables ? 'variables, ' : ''}select, opts),
+          opts
+        )
+      }
+    `;
+  }
+
   get code() {
     const segments = [
       this.imports,
@@ -297,7 +314,8 @@ export class QueryGenerator {
       this.setPromiseMethod,
       this.setErrorMethod,
       this.dispatchMethod,
-      this.footer
+      this.footer,
+      this.hook
     ].filter(Boolean);
 
     return segments.join('\n');
