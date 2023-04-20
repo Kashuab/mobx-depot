@@ -7,6 +7,10 @@ export class EnumGenerator {
     this.enumType = enumType;
   }
 
+  get name() {
+    return this.enumType.name;
+  }
+
   get fileName() {
     return `${this.enumType.name}.ts`;
   }
@@ -19,11 +23,11 @@ export class EnumGenerator {
     return `
 ${this.imports}
     
-export enum ${this.enumType.name} {
+export enum ${this.name} {
   ${this.enumType.enumValues.map(value => `${value.name} = '${value.name}'`).join(',\n  ')}
 }
 
-defineEnum(${this.enumType.name});
+defineEnum(${this.name});
     `;
   }
 }

@@ -7,6 +7,7 @@ import {ModelSelectorGenerator} from "./ModelSelectorGenerator";
 
 type ModelGeneratorOpts = {
   idFieldName: string;
+  depotDirName: string;
 }
 
 export class ModelGenerator {
@@ -288,7 +289,7 @@ export class ModelGenerator {
   get userEditableModelCode() {
     return dedent`
       import { makeModelObservable } from 'mobx-depot';
-      import { ${this.baseModelClassName} } from './depot/base/${this.baseModelClassName}';
+      import { ${this.baseModelClassName} } from './${this.opts.depotDirName}';
       
       export class ${this.userEditableModelClassName} extends ${this.baseModelClassName} {
         constructor(init: Partial<${this.userEditableModelClassName}> = {}) {

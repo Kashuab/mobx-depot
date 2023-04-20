@@ -17,6 +17,7 @@ import {RootStoreGenerator} from "./generators/RootStoreGenerator";
 import { resolve } from 'path';
 import {generateUseInstanceHooks} from "./generators/UseInstanceGenerator";
 import {EnumGenerator} from "./generators/EnumGenerator";
+import dedent from "dedent";
 
 type GenerateOpts = {
   url: string;
@@ -24,11 +25,12 @@ type GenerateOpts = {
   include: string[] | null;
   exclude: string[] | null;
   writeReactUtilities: boolean;
+  depotDirName: string;
   idFieldName: string;
 }
 
 export async function generate(opts: GenerateOpts) {
-  const { url, outDir, include, exclude, writeReactUtilities, idFieldName } = opts;
+  const { url, outDir, include, exclude, writeReactUtilities, depotDirName, idFieldName } = opts;
   
   const introspection = await (async () => {
     if (url.startsWith('http')) {
@@ -52,10 +54,12 @@ export async function generate(opts: GenerateOpts) {
   const models = generateModels(introspection);
   generateRootStore(models);
 
-  generateInputObjectInterfaces(introspection);
-  generateMutations(introspection);
-  generateQueries(introspection);
-  generateEnums(introspection);
+  const inputs = generateInputObjectInterfaces(introspection);
+  const mutations = generateMutations(introspection);
+  const queries = generateQueries(introspection);
+  const enums = generateEnums(introspection);
+
+  writeDepotIndex(models, queries, mutations, inputs, enums);
 
   if (writeReactUtilities) {
     generateHooks();
@@ -68,7 +72,7 @@ export async function generate(opts: GenerateOpts) {
   function generateHooks() {
     const useInstanceHooks = generateUseInstanceHooks();
 
-    fs.writeFileSync(withOutDir(`depot/hooks.ts`), withDontEditWarning(useInstanceHooks));
+    fs.writeFileSync(withOutDir(`${depotDirName}/hooks.ts`), withDontEditWarning(useInstanceHooks));
   }
 
   function generateRootStore(models: ModelGenerator[]) {
@@ -78,10 +82,19 @@ export async function generate(opts: GenerateOpts) {
   }
 
   function generateEnums(query: IntrospectionQuery) {
-    const enums = query.__schema.types.filter(type => type.kind === 'ENUM') as IntrospectionEnumType[];
+    const enums = query.__schema.types.filter(type => {
+      if (type.kind !== 'ENUM') return false;
+
+      const blacklist = ['__TypeKind', '__DirectiveLocation'];
+      if (blacklist.includes(type.name)) return false;
+
+      return true;
+    }) as IntrospectionEnumType[];
     const generators = enums.map((enumType) => new EnumGenerator(enumType));
 
     writeEnumsToDisk(generators);
+
+    return generators;
   }
   
   function generateQueries(query: IntrospectionQuery) {
@@ -98,6 +111,8 @@ export async function generate(opts: GenerateOpts) {
     const generators = queryType.fields.map(field => new QueryGenerator(field, false, writeReactUtilities));
   
     writeQueriesToDisk(generators);
+
+    return generators;
   }
   
   function generateInputObjectInterfaces(query: IntrospectionQuery) {
@@ -107,11 +122,13 @@ export async function generate(opts: GenerateOpts) {
     const generators = inputObjectTypes.map(type => new InputObjectInterfaceGenerator(type));
   
     writeInputObjectInterfacesToDisk(generators);
+
+    return generators;
   }
   
   function generateMutations(query: IntrospectionQuery) {
     const mutationType = query.__schema.types.find(type => type.name === 'Mutation');
-    if (!mutationType) return;
+    if (!mutationType) return [];
   
     if (!('fields' in mutationType)) {
       throw new Error('Expected mutationType to have fields');
@@ -120,6 +137,8 @@ export async function generate(opts: GenerateOpts) {
     const generators = mutationType.fields.map(field => new QueryGenerator(field, true, writeReactUtilities));
   
     writeMutationsToDisk(generators);
+
+    return generators;
   }
   
   function generateScalars(query: IntrospectionQuery) {
@@ -147,7 +166,7 @@ export async function generate(opts: GenerateOpts) {
 
         return true;
       })
-      .map(type => new ModelGenerator(type, { idFieldName }));
+      .map(type => new ModelGenerator(type, { idFieldName, depotDirName }));
   
     writeModelsToDisk(modelGenerators);
   
@@ -159,34 +178,34 @@ export async function generate(opts: GenerateOpts) {
   }
 
   function writeEnumsToDisk(enumsGenerators: EnumGenerator[]) {
-    if (!fs.existsSync(withOutDir('depot/enums'))) {
-      fs.mkdirSync(withOutDir('depot/enums'), { recursive: true });
+    if (!fs.existsSync(withOutDir(`${depotDirName}/enums`))) {
+      fs.mkdirSync(withOutDir(`${depotDirName}/enums`), { recursive: true });
     }
 
     enumsGenerators.forEach(enumGenerator => {
-      fs.writeFileSync(withOutDir(`depot/enums/${enumGenerator.fileName}`), withDontEditWarning(enumGenerator.code));
+      fs.writeFileSync(withOutDir(`${depotDirName}/enums/${enumGenerator.fileName}`), withDontEditWarning(enumGenerator.code));
     });
   }
 
   function writeScalarsToDisk(scalars: ScalarGenerator[]) {
-    if (!fs.existsSync(withOutDir('depot'))) {
-      fs.mkdirSync(withOutDir('depot'), { recursive: true });
+    if (!fs.existsSync(withOutDir(depotDirName))) {
+      fs.mkdirSync(withOutDir(depotDirName), { recursive: true });
     }
 
     fs.writeFileSync(
-      withOutDir(`depot/scalars.ts`),
+      withOutDir(`${depotDirName}/scalars.ts`),
       withDontEditWarning(scalars.map(scalar => scalar.code).join('\n\n'))
     );
   }
   
   function writeModelsToDisk(models: ModelGenerator[], force = false) {
-    if (!fs.existsSync(withOutDir('depot/base/selectors'))) {
-      fs.mkdirSync(withOutDir('depot/base/selectors'), { recursive: true });
+    if (!fs.existsSync(withOutDir(`${depotDirName}/base/selector`))) {
+      fs.mkdirSync(withOutDir(`${depotDirName}/base/selectors`), { recursive: true });
     }
   
     models.forEach(model => {
-      fs.writeFileSync(withOutDir(`depot/base/${model.baseModelFileName}`), withDontEditWarning(model.baseModelCode));
-      fs.writeFileSync(withOutDir(`depot/base/selectors/${model.selectorGenerator.fileName}`), withDontEditWarning(model.selectorGenerator.code));
+      fs.writeFileSync(withOutDir(`${depotDirName}/base/${model.baseModelFileName}`), withDontEditWarning(model.baseModelCode));
+      fs.writeFileSync(withOutDir(`${depotDirName}/base/selectors/${model.selectorGenerator.fileName}`), withDontEditWarning(model.selectorGenerator.code));
 
       const userEditablePath = withOutDir(`${model.userEditableModelFileName}`);
       if (!force && fs.existsSync(userEditablePath)) {
@@ -198,41 +217,81 @@ export async function generate(opts: GenerateOpts) {
   }
   
   function writeInputObjectInterfacesToDisk(inputObjectInterfaces: InputObjectInterfaceGenerator[]) {
-    if (!fs.existsSync(withOutDir('depot/inputs'))) {
-      fs.mkdirSync(withOutDir('depot/inputs'), { recursive: true });
+    if (!fs.existsSync(withOutDir(`${depotDirName}/inputs`))) {
+      fs.mkdirSync(withOutDir(`${depotDirName}/inputs`), { recursive: true });
     }
   
     inputObjectInterfaces.forEach(inputObjectInterface => {
-      fs.writeFileSync(withOutDir(`depot/inputs/${inputObjectInterface.fileName}`), withDontEditWarning(inputObjectInterface.code));
+      fs.writeFileSync(withOutDir(`${depotDirName}/inputs/${inputObjectInterface.fileName}`), withDontEditWarning(inputObjectInterface.code));
     });
   }
   
   function writeMutationsToDisk(mutations: QueryGenerator[]) {
-    if (!fs.existsSync(withOutDir('depot/mutations'))) {
-      fs.mkdirSync(withOutDir('depot/mutations'), { recursive: true });
+    if (!fs.existsSync(withOutDir(`${depotDirName}/mutations`))) {
+      fs.mkdirSync(withOutDir(`${depotDirName}/mutations`), { recursive: true });
     }
   
     mutations.forEach(mutation => {
-      fs.writeFileSync(withOutDir(`depot/mutations/${mutation.fileName}`), withDontEditWarning(mutation.code));
+      fs.writeFileSync(withOutDir(`${depotDirName}/mutations/${mutation.fileName}`), withDontEditWarning(mutation.code));
     });
   }
   
   function writeQueriesToDisk(queries: QueryGenerator[]) {
-    if (!fs.existsSync(withOutDir('depot/queries'))) {
-      fs.mkdirSync(withOutDir('depot/queries'), { recursive: true });
+    if (!fs.existsSync(withOutDir(`${depotDirName}/queries`))) {
+      fs.mkdirSync(withOutDir(`${depotDirName}/queries`), { recursive: true });
     }
   
     queries.forEach(query => {
-      fs.writeFileSync(withOutDir(`depot/queries/${query.fileName}`), withDontEditWarning(query.code));
+      fs.writeFileSync(withOutDir(`${depotDirName}/queries/${query.fileName}`), withDontEditWarning(query.code));
     });
   }
 
   function writeRootStoreToDisk(rootStore: RootStoreGenerator) {
-    if (!fs.existsSync(withOutDir('depot'))) {
-      fs.mkdirSync(withOutDir('depot'), { recursive: true });
+    if (!fs.existsSync(withOutDir(depotDirName))) {
+      fs.mkdirSync(withOutDir(depotDirName), { recursive: true });
     }
 
-    fs.writeFileSync(withOutDir(`depot/${rootStore.fileName}`), withDontEditWarning(rootStore.code));
+    fs.writeFileSync(withOutDir(`${depotDirName}/${rootStore.fileName}`), withDontEditWarning(rootStore.code));
+  }
+
+  function writeDepotIndex(
+    models: ModelGenerator[],
+    queries: QueryGenerator[],
+    mutations: QueryGenerator[],
+    inputs: InputObjectInterfaceGenerator[],
+    enums: EnumGenerator[]
+  ) {
+    const exports: string[] = [];
+
+    models.forEach(model => {
+      exports.push(`export * from './base/${model.baseModelClassName}';`)
+    })
+
+    queries.forEach(query => {
+      exports.push(`export * from './queries/${query.className}';`);
+    })
+
+    mutations.forEach(mutation => {
+      exports.push(`export * from './mutations/${mutation.className}';`);
+    })
+
+    inputs.forEach(input => {
+      exports.push(`export * from './inputs/${input.interfaceName}';`);
+    })
+
+    enums.forEach(e => {
+      exports.push(`export * from './enums/${e.name}';`);
+    })
+
+    exports.push(`export * from './rootStore';`);
+    exports.push(`export * from './scalars';`);
+    exports.push(`export * from './hooks';`);
+
+    const index = withDontEditWarning(dedent`
+      ${exports.join('\n')}
+    `);
+
+    writeFileSync(withOutDir(`${depotDirName}/index.ts`), index, 'utf-8');
   }
 }
 
