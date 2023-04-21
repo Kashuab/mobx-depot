@@ -103,7 +103,7 @@ export class ModelGenerator {
 
   get imports() {
     return dedent`
-      import { assignInstanceProperties, Selectable } from 'mobx-depot';
+      import { assignInstanceProperties, Selectable, WritableInstanceVariables } from 'mobx-depot';
       ${this.scalarImports}
       ${this.enumImports}
       ${this.modelImports}
@@ -127,10 +127,9 @@ export class ModelGenerator {
   }
 
   get constructorFunction() {
-    // TODO: Is Partial ideal here? I think it could include functions, which is not ideal
     return indentString(dedent`
-      constructor(init: Partial<${this.baseModelClassName}>) {
-        this.assign(init);
+      constructor(init: Partial<${this.propsTypeName}>) {
+        this.assign(init as any);
       }
     `, 2);
   }
@@ -170,6 +169,17 @@ export class ModelGenerator {
     ].join('\n');
   }
 
+  get propsTypeName() {
+    return `${this.baseModelClassName}Props`;
+  }
+
+  get propsType() {
+    const fieldNameUnion = this.fieldNames.map(name => `'${name}'`).join(' | ');
+    return dedent`
+      export type ${this.propsTypeName} = Pick<${this.baseModelClassName}, ${fieldNameUnion}>;
+    `
+  }
+
   createSafeMethodName(name: string) {
     if (this.modelType.fields.some(field => field.name === name)) {
       return `_${name}`;
@@ -182,15 +192,19 @@ export class ModelGenerator {
     return this.createSafeMethodName('selectedData');
   }
 
+  get fieldNames() {
+    return this.modelType.fields.map(f => f.name);
+  }
+
   get selectedDataGetter() {
     return indentString(dedent`
       get ${this.selectedDataMethodName}() {
-        const data: Partial<this> = {};
-        const keys: (keyof this)[] = [${this.modelType.fields.map(f => `'${f.name}'`).join(', ')}]
+        const data: Partial<${this.propsTypeName}> = {};
+        const keys: (keyof ${this.propsTypeName})[] = [${this.fieldNames.map(name => `'${name}'`).join(', ')}]
     
         keys.forEach(key => {
           try {
-            data[key] = this[key];
+            data[key] = this[key] as any; // TODO: Types
           } catch (err) {
             // TODO: Check for SelectionError
           }
@@ -217,7 +231,7 @@ export class ModelGenerator {
 
   get assignMethod() {
     return indentString(dedent`
-      ${this.assignMethodName}(data: Partial<${this.baseModelClassName}>) {
+      ${this.assignMethodName}(data: Partial<WritableInstanceVariables<this>>) {
         assignInstanceProperties(this, data);
       }
     `, 2);
@@ -229,7 +243,7 @@ export class ModelGenerator {
 
   get propertySetter() {
     return indentString(dedent`
-      ${this.setMethodName}<K extends keyof this>(key: K, value: this[K]) {
+      ${this.setMethodName}<K extends keyof WritableInstanceVariables<this>>(key: K, value: this[K]) {
         this[key] = value;
       }
     `, 2);
@@ -271,6 +285,7 @@ export class ModelGenerator {
     const segments = [
       this.baseModelWarning,
       this.imports,
+      this.propsType,
       this.header,
       this.properties,
       this.constructorFunction,

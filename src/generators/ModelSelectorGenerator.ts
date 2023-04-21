@@ -49,7 +49,6 @@ export class ModelSelectorGenerator {
   get imports() {
     return dedent`
       import { Selection } from 'mobx-depot';
-      import { ${this.model.baseModelClassName} } from '../${this.model.baseModelClassName}';
       ${this.selectorFunctionImports}
       ${this.nestedObjectArgsImports}
     `
@@ -102,19 +101,10 @@ ${indentString(args.map(arg => `${arg.name}${typeIsNullable(arg.type) ? '?' : ''
       return `${name}: ${definition};`
     })
 
-    const omits = [
-      ...this.modelNestedObjectFields.map(({ name }) => `'${name}'`),
-      `'${this.model.setMethodName}'`, // Need to omit other methods from the class
-      `'${this.model.assignMethodName}'`,
-      `'${this.model.selectedDataMethodName}'`,
-    ]
-
-    if (this.model.hasIdField) omits.push(`'${this.idFieldName}'`);
-
     // This makes me want to gouge my eyes out! :^)
     let type =
 `export type ${typeName} = {
-  [key in keyof Omit<${this.model.baseModelClassName}, ${omits.join(' | ')}>]: ${typeName}; 
+  [key in typeof primitiveKeys[number]]: ${typeName}; 
 } & {
   /**
     * Adds the following fields to the selection:
@@ -137,7 +127,7 @@ ${indentString(this.primitiveFields.map(({ name, type }) => `* - \`${name}\`: \`
     const selectionBuilderTypeName = `${this.model.modelType.name}SelectionBuilder`;
 
     return dedent`
-      const primitiveKeys: string[] = [${this.primitiveFields.map(f => `"${f.name}"`).join(', ')}];
+      const primitiveKeys = [${this.primitiveFields.map(f => `"${f.name}"`).join(', ')}] as const;
       
       export type ${selectionBuilderTypeName} = (proxy: ${typeName}) => ${typeName};
       
@@ -192,8 +182,8 @@ ${indentString(this.primitiveFields.map(({ name, type }) => `* - \`${name}\`: \`
     const segments = [
       this.imports,
       this.nestedObjectArgsTypes,
-      this.proxyType,
       this.proxyGenerator,
+      this.proxyType,
     ]
 
     return segments.join('\n\n');
