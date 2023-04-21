@@ -103,14 +103,14 @@ ${indentString(args.map(arg => `${arg.name}${typeIsNullable(arg.type) ? '?' : ''
 
     // This makes me want to gouge my eyes out! :^)
     let type =
-`export type ${typeName} = {
+`export type ${typeName} = {${this.hasPrimitives ? `
   [key in typeof primitiveKeys[number]]: ${typeName}; 
 } & {
   /**
     * Adds the following fields to the selection:
 ${indentString(this.primitiveFields.map(({ name, type }) => `* - \`${name}\`: \`${getTypeName(type)}\``).join('\n'), 4)}
     */
-  primitives: ${typeName};${nestedProxyGetters.length > 0 ? `\n${indentString(nestedProxyGetters.join('\n'), 2)}` : ''}
+  primitives: ${typeName};` : ''}${nestedProxyGetters.length > 0 ? `\n${indentString(nestedProxyGetters.join('\n'), 2)}` : ''}
 }`;
 
     return type;
@@ -118,7 +118,11 @@ ${indentString(this.primitiveFields.map(({ name, type }) => `* - \`${name}\`: \`
 
   get primitiveFields() {
     return this.model.modelType.fields
-      .filter(field => field.name !== this.idFieldName && !referencesModel(field.type))
+      .filter(field => field.name !== this.idFieldName && !referencesModel(field.type) && field.name !== 'clientMutationId')
+  }
+
+  get hasPrimitives() {
+    return this.primitiveFields.length > 0;
   }
 
   get proxyGenerator() {
@@ -127,7 +131,7 @@ ${indentString(this.primitiveFields.map(({ name, type }) => `* - \`${name}\`: \`
     const selectionBuilderTypeName = `${this.model.modelType.name}SelectionBuilder`;
 
     return dedent`
-      const primitiveKeys = [${this.primitiveFields.map(f => `"${f.name}"`).join(', ')}] as const;
+      ${this.hasPrimitives ? `const primitiveKeys = [${this.primitiveFields.map(f => `"${f.name}"`).join(', ')}] as const` : ''};
       
       export type ${selectionBuilderTypeName} = (proxy: ${typeName}) => ${typeName};
       
@@ -140,9 +144,9 @@ ${indentString(this.primitiveFields.map(({ name, type }) => `* - \`${name}\`: \`
         const proxy: ${typeName} = new Proxy({}, {
           get(target, prop) {
             switch (prop) {${this.hasNestedObjects ? `\n${indentString(this.proxyGeneratorNestedObjectSwitchCases, 6)}` : ''}
-              case 'primitives':
+              ${this.hasPrimitives ? `case 'primitives':
                 selections.push(...primitiveKeys.map(key => ({ fieldName: key })));   
-                break;
+                break;` : ''}
               default:
                 selections.push({ fieldName: prop as string });
                 break;

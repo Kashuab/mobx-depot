@@ -193,7 +193,7 @@ export class ModelGenerator {
   }
 
   get fieldNames() {
-    return this.modelType.fields.map(f => f.name);
+    return this.modelType.fields.map(f => f.name).filter(name => name !== 'clientMutationId');
   }
 
   get selectedDataGetter() {
