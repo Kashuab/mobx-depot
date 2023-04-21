@@ -1,6 +1,12 @@
 import {IntrospectionField} from "graphql/utilities/getIntrospectionQuery";
 import {pascalCase} from "change-case";
-import {getTypeKind, getTypeName, typeIsNullable} from "./ModelGenerator";
+import {
+  arrayTypeContainsNonNullableType,
+  getTypeKind,
+  getTypeName,
+  typeIsNonNullable,
+  typeIsNullable
+} from "./ModelGenerator";
 import {indentString} from "../lib/indentString";
 import dedent from "dedent";
 import {isScalarType, scalarIsPrimitive} from "../generate";
@@ -147,9 +153,17 @@ export class QueryGenerator {
   get documentVariableDefinitions() {
     // TODO: Multiple variable mutations
     return this.field.args.reduce((variables, arg) => {
-      let definition = `$${arg.name}: ${getTypeName(arg.type, { normalizeName: false })}`;
+      let typeName = getTypeName(arg.type, { normalizeName: false, stripArrayType: false });
 
-      if (arg.type.kind === 'NON_NULL') {
+      const isArray = typeName.endsWith('[]');
+      if (isArray) {
+        const typeIsNonNullable = arrayTypeContainsNonNullableType(arg.type);
+        typeName = `[${typeName.replace('[]', '')}${typeIsNonNullable ? '!' : ''}]`
+      }
+
+      let definition = `$${arg.name}: ${typeName}`;
+
+      if (typeIsNonNullable(arg.type)) {
         definition += '!';
       }
 

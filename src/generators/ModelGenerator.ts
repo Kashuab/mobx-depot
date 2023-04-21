@@ -317,11 +317,28 @@ export class ModelGenerator {
   }
 }
 
-export function typeIsNonNullable(type: { kind: string }): boolean {
+export function arrayTypeContainsNonNullableType(type: IType): boolean {
+  let listType;
+  let currentType: IType | undefined = type;
+
+  while (!listType && currentType) {
+    if (currentType.kind === "LIST") {
+      listType = currentType;
+    } else {
+      currentType = currentType.ofType;
+    }
+  }
+
+  if (!listType?.ofType) return false
+
+  return listType.ofType.kind === "NON_NULL";
+}
+
+export function typeIsNonNullable(type: IType): boolean {
   return type.kind === 'NON_NULL';
 }
 
-export function typeIsNullable(type: { kind: string }): boolean {
+export function typeIsNullable(type: IType): boolean {
   return !typeIsNonNullable(type);
 }
 

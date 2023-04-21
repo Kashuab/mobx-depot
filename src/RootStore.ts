@@ -297,7 +297,7 @@ export class RootStore<IDFieldName extends string, Models extends RootStoreModel
       throw new Error(`Instance does not have an assign method`);
     })();
 
-    assign(data);
+    assign.call(instance, data);
   }
 
   private emit(name: RootStoreCallbackName, instance: InstanceType<Models[ModelName]>) {
