@@ -17,6 +17,7 @@ export function Selectable() {
     };
 
     Object.defineProperty(target, propertyKey, {
+      enumerable: true,
       get: getter,
       set: setter
     });

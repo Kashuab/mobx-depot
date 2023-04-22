@@ -1,5 +1,7 @@
 import {PostModel} from "./PostModel";
 import {assignInstanceProperties} from "../../lib/assignInstanceProperties";
+import {UserMetadataModel} from "./UserMetadataModel";
+import {Selectable} from "../../decorators/Selectable";
 
 export class UserModel {
   source: 'local' | 'remote' = 'local';
@@ -7,21 +9,14 @@ export class UserModel {
     this.source = source;
   }
 
-  id: string
-  firstName: string
-  lastName: string;
-  posts: PostModel[]
-  metadata: {
-    lastOnlineAt: string;
-    postCount: number;
-  }
+  @Selectable() declare id: string
+  @Selectable() declare firstName: string
+  @Selectable() declare lastName: string;
+  @Selectable() declare posts: PostModel[]
+  @Selectable() declare metadata: UserMetadataModel;
 
   constructor(init: any) {
-    this.id = init.id;
-    this.firstName = init.firstName;
-    this.lastName = init.lastName;
-    this.posts = init.posts;
-    this.metadata = init.metadata;
+    this.assign(init)
   }
 
   assign(data: Partial<UserModel>) {

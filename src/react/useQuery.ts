@@ -18,30 +18,58 @@ export type UseQueryOpts<Data> = {
   lazy?: boolean;
   onSuccess?: (data: Data) => void;
 }
+
 /**
+ * A hook that manages the state of a given query.
+ *
+ * **Tip:** When using a method on a class that returns the query, don't pass it in directly. Use an arrow function:
+ * `useQuery(() => user.findPosts())` instead of `useQuery(user.findPosts)` Otherwise, the context of `this` will be
+ * lost, resulting in a runtime error.
+ *
  * @param generate A function that returns a `Query` instance.
  */
-export function useQuery<Query extends IQuery | IQueryWithVariables, Data extends Exclude<Query['data'], null>>(
-  generate: () => Query,
+export function useQuery<
+  Query extends IQuery | IQueryWithVariables,
+  Data = Exclude<Query['data'], null>,
+  Variables = Query extends IQueryWithVariables ? Exclude<Query['variables'], null> : never
+>(
+  generate?: (() => Query) | null,
   opts: UseQueryOpts<Data> = {},
 ) {
   const { lazy = false } = opts;
   const [query, setQuery] = useState<Query | null>(null);
 
-  const dispatch = async (variables?: Query extends IQueryWithVariables ? Exclude<Query['variables'], null> : never): Promise<Data> => {
-    const newQuery = generate();
+  const dispatch = async (
+    variablesOrQuery?: Query | Variables,
+  ): Promise<Data> => {
+    let usableQuery = query;
+    let variables: Variables | undefined;
 
-    setQuery(newQuery);
+    if (variablesOrQuery) {
+      if (variablesOrQuery instanceof Object && 'dispatch' in variablesOrQuery) {
+        usableQuery = variablesOrQuery
+      } else {
+        variables = variablesOrQuery;
+      }
+    } else if (generate) {
+      usableQuery = generate();
+    }
+
+    if (!usableQuery) {
+      throw new Error('No query provided');
+    }
+
+    setQuery(usableQuery);
 
     let data: Data;
 
-    if (newQuery.promise) {
-      // If the Query is already in progress, await its promise
-      data = await newQuery.promise as Data;
+    if (usableQuery.promise) {
+      // If the query is already in progress, await its promise
+      data = await usableQuery.promise as Data;
     } else {
       // Automatically mutate if the generate function didn't call it already.
       // Is this reliable? :shrug:
-      data = await newQuery.dispatch(variables) as Data;
+      data = await usableQuery.dispatch(variables) as Data;
     }
 
     opts.onSuccess?.(data);

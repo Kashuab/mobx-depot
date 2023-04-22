@@ -5,15 +5,21 @@ export function assignInstanceProperties<T extends object>(target: T, source: T,
   assigned.push(target);
 
   for (const key in source) {
-    if (!source.hasOwnProperty(key)) continue;
+    let sourceValue;
 
-    const sourceValue = source[key];
+    try {
+      sourceValue = source[key];
+    } catch (err) {
+      // Probably a selection error, ignore this field
+      continue;
+    }
+
     let targetValue;
 
     try {
       targetValue = target[key];
     } catch (err) {
-      // Probably a selection error.
+      // Probably a selection error. OK to continue.
     }
 
     // Ignore undefined target values, as they may not have been selected in GraphQL
@@ -24,7 +30,6 @@ export function assignInstanceProperties<T extends object>(target: T, source: T,
 
     // Deep merge any objects as to not lose existing state. Retain the target's reference.
     if (targetValue && sourceValue && !(sourceValue instanceof Array) && typeof sourceValue === 'object') {
-
       assignInstanceProperties(targetValue, sourceValue, assigned as any); // TODO: Types
     } else {
       target[key] = sourceValue;

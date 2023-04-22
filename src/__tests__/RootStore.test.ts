@@ -3,10 +3,12 @@ import {PostModel} from "./lib/PostModel";
 import {UserModel} from "./lib/UserModel";
 import {OtherIdPostModel} from "./lib/OtherIdPostModel";
 import {OtherIdUserModel} from "./lib/OtherIdUserModel";
+import {UserMetadataModel} from "./lib/UserMetadataModel";
 
 const createStore = <ID extends string>(idFieldName: ID) => new RootStore(() => ({
   User: UserModel,
   Post: PostModel,
+  UserMetadata: UserMetadataModel,
 }), { idFieldName });
 
 describe('RootStore', () => {
@@ -128,6 +130,8 @@ describe('RootStore', () => {
     const newPost = new PostModel({ id: '__localModel', title: 'Woah!' });
 
     newPost.assign(originalPost);
+    expect(newPost.id).toBe(originalPost.id);
+
     store.replace(originalPost, newPost);
 
     expect(resolvedUser.posts[0]).toBe(newPost);
@@ -143,6 +147,7 @@ describe('RootStore', () => {
           id: '1',
           firstName: 'Bing bong',
           metadata: {
+            __typename: 'UserMetadata',
             lastOnlineAt: 'now',
           }
         }
@@ -156,6 +161,7 @@ describe('RootStore', () => {
           __typename: 'User',
           id: '1',
           metadata: {
+            __typename: 'UserMetadata',
             postCount: 0,
           }
         }

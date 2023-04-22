@@ -1,5 +1,6 @@
 import {UserModel} from "./UserModel";
 import {assignInstanceProperties} from "../../lib/assignInstanceProperties";
+import {Selectable} from "../../decorators/Selectable";
 
 export class PostModel {
   source: 'local' | 'remote' = 'local';
@@ -7,14 +8,12 @@ export class PostModel {
     this.source = source;
   }
 
-  id: string;
-  title: string;
-  user: UserModel;
+  @Selectable() declare id: string;
+  @Selectable() declare title: string;
+  @Selectable() declare  user: UserModel;
 
   constructor(init: any) {
-    this.id = init.id;
-    this.title = init.title;
-    this.user = init.user;
+    this.assign(init);
   }
 
   assign(data: Partial<PostModel>) {

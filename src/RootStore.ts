@@ -104,7 +104,6 @@ export class RootStore<IDFieldName extends string, Models extends RootStoreModel
     return this.opts.idFieldName;
   }
 
-  // TODO: __typename gets in the instances
   public resolve<D extends object>(
     data: D,
     source: ResolveSource = 'local',
@@ -271,7 +270,7 @@ export class RootStore<IDFieldName extends string, Models extends RootStoreModel
   }
 
   /**
-   * Remove an instance from the store, replacing all references to it with `null`.
+   * Remove an instance from the store, replacing all references to it with `undefined`.
    * @param instance
    */
   public remove<T extends Models[ModelName]>(instance: InstanceType<T>) {
@@ -344,28 +343,35 @@ export class RootStore<IDFieldName extends string, Models extends RootStoreModel
       injected.push(obj);
 
       for (const key in obj) {
-        if (!obj.hasOwnProperty(key)) continue;
+        let value;
 
-        if (obj[key] === target) {
+        // Accessing the key could throw an error if it wasn't selected in a query
+        try { value = obj[key] } catch (err) { continue; }
+
+        if (value === target) {
           obj[key] = source;
-        } else if (obj[key] instanceof Array) {
-          obj[key] = obj[key].map((value: any) => {
-            if (value === target) return source;
-
-            if (value instanceof Array) {
-              value.forEach(inject);
-            } else if (typeof value === 'object') {
-              inject(value);
+        } else if (value instanceof Array) {
+          value = value.map((item: any) => {
+            if (item === target) {
+              return source;
             }
 
-            return value;
+            if (item instanceof Array) {
+              item.forEach(inject);
+            } else if (typeof item === 'object') {
+              inject(item);
+            }
+
+            return item;
           });
 
           if (source === undefined) {
-            obj[key] = obj[key].filter((value: any) => value !== undefined);
+            obj[key] = value.filter((value: any) => value !== undefined);
+          } else {
+            obj[key] = value;
           }
-        } else if (typeof obj[key] === 'object') {
-          inject(obj[key]);
+        } else if (typeof value === 'object') {
+          inject(value);
         }
       }
     }
