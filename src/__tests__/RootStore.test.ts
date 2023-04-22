@@ -4,11 +4,13 @@ import {UserModel} from "./lib/UserModel";
 import {OtherIdPostModel} from "./lib/OtherIdPostModel";
 import {OtherIdUserModel} from "./lib/OtherIdUserModel";
 import {UserMetadataModel} from "./lib/UserMetadataModel";
+import {UserQueryPayloadModel} from "./lib/UserQueryPayloadModel";
 
 const createStore = <ID extends string>(idFieldName: ID) => new RootStore(() => ({
   User: UserModel,
   Post: PostModel,
   UserMetadata: UserMetadataModel,
+  UserQueryPayload: UserQueryPayloadModel,
 }), { idFieldName });
 
 describe('RootStore', () => {
@@ -354,4 +356,62 @@ describe('RootStore', () => {
     expect(user.posts[0].title).toBe('Hello world');
     expect(user.posts[1].title).toBe('Hello world 3');
   })
+
+  it('can deeply merge data with assign', () => {
+    const user = new UserModel({
+      metadata: new UserMetadataModel({
+        lastOnlineAt: 'now',
+        postCount: 3
+      })
+    });
+
+    user.assign({
+      metadata: new UserMetadataModel({
+        lastOnlineAt: null,
+        postCount: 3
+      })
+    });
+
+    expect(user.metadata.lastOnlineAt).toBeNull();
+  })
+
+  it('can deeply update data with store.resolve', () => {
+    const { userQuery } = store.resolve({
+      userQuery: {
+        __typename: 'UserQueryPayload',
+        user: {
+          __typename: 'User',
+          id: '1',
+          metadata: {
+            __typename: 'UserMetadata',
+            lastOnlineAt: 'now',
+            postCount: 3
+          }
+        }
+      }
+    } as const);
+
+    const { user } = userQuery;
+
+    expect(user.metadata.lastOnlineAt).toBe('now')
+    expect(user.metadata.postCount).toBe(3)
+
+    store.resolve({
+      userQuery: {
+        __typename: 'UserQueryPayload',
+        user: {
+          __typename: 'User',
+          id: '1',
+          metadata: {
+            __typename: 'UserMetadata',
+            lastOnlineAt: null,
+            postCount: 3
+          }
+        }
+      }
+    } as const);
+
+    expect(user.metadata.lastOnlineAt).toBeNull();
+    expect(user.metadata.postCount).toBe(3)
+  });
 });

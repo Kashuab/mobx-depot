@@ -116,6 +116,12 @@ export class DepotGQLClient<IDFieldName extends string, Models extends RootStore
   }
 
   cacheResponse(cacheKey: string, response: any) {
+    const existingCacheHit = this.getCacheHit(cacheKey);
+    if (existingCacheHit) {
+      existingCacheHit[1] = response;
+      return;
+    }
+
     this.cache.push([cacheKey, response]);
   }
 
@@ -136,6 +142,10 @@ export class DepotGQLClient<IDFieldName extends string, Models extends RootStore
   }
 
   getCachedResponse<T>(cacheKey: string): T | null {
-    return this.cache.find(([key]) => key === cacheKey)?.[1] || null;
+    return this.getCacheHit<T>(cacheKey)?.[1] || null;
+  }
+
+  getCacheHit<T>(cacheKey: string): [string, T] | null {
+    return this.cache.find(([key]) => key === cacheKey) || null;
   }
 }

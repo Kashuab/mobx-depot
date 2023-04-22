@@ -43,9 +43,9 @@ export function makeModelObservable<T extends object, AdditionalKeys extends Pro
     }
 
     // Cache if class
-    if (proto && proto !== objectPrototype) {
-      Object.defineProperty(proto, annotationsSymbol, { value: annotations });
-    }
+    // if (proto && proto !== objectPrototype) {
+    //   Object.defineProperty(proto, annotationsSymbol, { value: annotations });
+    // }
   }
 
   return makeObservable(target, annotations, options);

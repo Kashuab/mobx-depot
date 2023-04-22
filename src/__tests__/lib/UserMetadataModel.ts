@@ -1,20 +1,10 @@
-import {assignInstanceProperties} from "../../lib/assignInstanceProperties";
-import {Selectable} from "../../decorators/Selectable";
+import {UserMetadataBaseModel} from "./UserMetadataBaseModel";
+import {makeModelObservable} from "../../makeModelObservable";
 
-export class UserMetadataModel {
-  source: 'local' | 'remote' = 'local';
-  __setSource(source: 'local' | 'remote') {
-    this.source = source;
-  }
-
-  @Selectable() declare lastOnlineAt: string | null;
-  @Selectable() declare postCount: number | null;
-
+export class UserMetadataModel extends UserMetadataBaseModel {
   constructor(init: any) {
-    this.assign(init);
-  }
+    super(init);
 
-  assign(data: Partial<UserMetadataModel>) {
-    assignInstanceProperties(this, data);
+    makeModelObservable(this);
   }
 }

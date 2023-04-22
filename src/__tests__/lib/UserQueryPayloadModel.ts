@@ -1,7 +1,7 @@
-import {PostBaseModel} from "./PostBaseModel";
+import {UserQueryPayloadBaseModel} from "./UserQueryPayloadBaseModel";
 import {makeModelObservable} from "../../makeModelObservable";
 
-export class PostModel extends PostBaseModel {
+export class UserQueryPayloadModel extends UserQueryPayloadBaseModel {
   constructor(init: any) {
     super(init);
 

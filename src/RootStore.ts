@@ -128,8 +128,8 @@ export class RootStore<IDFieldName extends string, Models extends RootStoreModel
       return resolved;
     }, {} as any); // TODO: Types
 
-    if (this.isResolvable(data)) {
-      const Model = this.getModel(data.__typename);
+    if (this.isResolvable(resolvedData)) {
+      const Model = this.getModel(resolvedData.__typename);
       const id = this.getInstanceId(resolvedData);
 
       if (id) {
@@ -137,12 +137,14 @@ export class RootStore<IDFieldName extends string, Models extends RootStoreModel
 
         if (instance) {
           // TODO: Types
-          return this.update(Model, id, resolvedData, source) as any;
+          // resolvedData is technically safe because we know its __typename matches the model class.
+          // However, TypeScript doesn't know that the properties are compatible.
+          return this.update(Model, id, resolvedData as any, source) as any;
         }
       }
 
-      // TODO: Types
-      return this.create(Model, resolvedData, source) as any;
+      // TODO: Types, same reason as above ^
+      return this.create(Model, resolvedData as any, source) as any;
     }
 
     return resolvedData;
@@ -306,12 +308,15 @@ export class RootStore<IDFieldName extends string, Models extends RootStoreModel
   }
 
   private instanceIsIdentifiable(
-    instance: ModelInstance<IDFieldName>
-  ): instance is (typeof instance & IdentifiableModelInstance<IDFieldName>) {
+    instance: unknown
+  ): instance is { [key in IDFieldName]: string } {
+    if (!instance) return false;
+    if (typeof instance !== 'object') return false;
+
     return this.idFieldName in instance;
   }
 
-  private getInstanceId(instance: ModelInstance<IDFieldName>): string | null {
+  private getInstanceId(instance: unknown): string | null {
     try {
       if (!this.instanceIsIdentifiable(instance)) return null;
 
@@ -342,11 +347,15 @@ export class RootStore<IDFieldName extends string, Models extends RootStoreModel
       if (injected.includes(obj)) return;
       injected.push(obj);
 
-      for (const key in obj) {
+      const keys = Object.getOwnPropertyNames(obj);
+
+      for (const key of keys) {
         let value;
 
         // Accessing the key could throw an error if it wasn't selected in a query
-        try { value = obj[key] } catch (err) { continue; }
+        try { value = obj[key] } catch (err) {
+          continue;
+        }
 
         if (value === target) {
           obj[key] = source;

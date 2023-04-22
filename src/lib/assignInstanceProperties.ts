@@ -4,7 +4,9 @@ export function assignInstanceProperties<T extends object>(target: T, source: T,
 
   assigned.push(target);
 
-  for (const key in source) {
+  const keys = Object.getOwnPropertyNames(source) as (keyof T)[];
+
+  for (const key of keys) {
     let sourceValue;
 
     try {
