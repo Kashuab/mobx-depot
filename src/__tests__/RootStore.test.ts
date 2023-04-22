@@ -414,4 +414,116 @@ describe('RootStore', () => {
     expect(user.metadata.lastOnlineAt).toBeNull();
     expect(user.metadata.postCount).toBe(3)
   });
+
+  it('can reconcile arrays in RootStore.resolve', () => {
+    const user = store.resolve({
+      __typename: 'User',
+      id: '1',
+      firstName: 'John',
+      posts: [
+        {
+          __typename: 'Post',
+          id: '1',
+          title: 'Hello world',
+        },
+        {
+          __typename: 'Post',
+          id: '2',
+          title: 'Hello world 2',
+        },
+        {
+          __typename: 'Post',
+          id: '3',
+          title: 'Hello world 3',
+        }
+      ]
+    } as const);
+
+    store.resolve({
+      __typename: 'User',
+      id: '1',
+      firstName: 'John',
+      posts: [
+        {
+          __typename: 'Post',
+          id: '1',
+          title: 'Hello world',
+        },
+        {
+          __typename: 'Post',
+          id: '2',
+          title: 'Hello world 2',
+        },
+        {
+          __typename: 'Post',
+          id: '3',
+          title: 'Hello world 3',
+        },
+        {
+          __typename: 'Post',
+          id: '4',
+          title: 'Hello world 4',
+        }
+      ]
+    } as const);
+
+    expect(user.posts).toHaveLength(4);
+    expect(user.posts[3].title).toBe('Hello world 4');
+
+    store.resolve({
+      __typename: 'User',
+      id: '1',
+      firstName: 'John',
+      posts: [
+        {
+          __typename: 'Post',
+          id: '1',
+          title: 'Hello world',
+        },
+        {
+          __typename: 'Post',
+          id: '2',
+          title: 'Hello world 2',
+        },
+        {
+          __typename: 'Post',
+          id: '3',
+          title: 'Hello world 3',
+        }
+      ]
+    } as const);
+
+    store.resolve({
+      __typename: 'User',
+      id: '1',
+      firstName: 'John',
+      posts: [
+        {
+          __typename: 'Post',
+          id: '1',
+          title: 'Hello world',
+        },
+        {
+          __typename: 'Post',
+          id: '3',
+          title: 'Hello world 3',
+        }
+      ]
+    } as const);
+
+    expect(user.posts).toHaveLength(2);
+    expect(user.posts[0].title).toBe('Hello world');
+    expect(user.posts[0].id).toBe('1');
+    expect(user.posts[1].title).toBe('Hello world 3');
+    expect(user.posts[1].id).toBe('3');
+
+    store.resolve({
+      __typename: 'User',
+      id: '1',
+      firstName: 'John',
+      posts: []
+    } as const);
+
+    expect(user.posts).toHaveLength(0);
+  })
 });

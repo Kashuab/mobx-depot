@@ -1,5 +1,6 @@
 import {assignInstanceProperties} from "../../lib/assignInstanceProperties";
 import {Selectable} from "../../decorators/Selectable";
+import {isComputedProp} from "mobx";
 
 export class UserMetadataBaseModel {
   source: 'local' | 'remote' = 'local';

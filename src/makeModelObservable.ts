@@ -28,8 +28,6 @@ export function makeModelObservable<T extends object, AdditionalKeys extends Pro
   if (!annotations) {
     annotations = {}
 
-    const proto = Object.getPrototypeOf(target)
-
     // This was previously `let current = proto` but it was missing some properties within the annotations.
     let current = target;
 
@@ -41,11 +39,6 @@ export function makeModelObservable<T extends object, AdditionalKeys extends Pro
 
       current = Object.getPrototypeOf(current);
     }
-
-    // Cache if class
-    // if (proto && proto !== objectPrototype) {
-    //   Object.defineProperty(proto, annotationsSymbol, { value: annotations });
-    // }
   }
 
   return makeObservable(target, annotations, options);
