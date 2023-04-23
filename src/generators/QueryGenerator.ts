@@ -134,6 +134,7 @@ export class QueryGenerator {
         `data: ${this.dataTypeName} | null = null;`,
         'options: Options = {};',
         `promise: Promise<${this.dataTypeName} | null> | null = null;`,
+        'abortController: AbortController | null = null;'
       ].filter(Boolean).join('\n'),
       2,
     )
@@ -234,6 +235,14 @@ export class QueryGenerator {
     return `${this.className}Data`;
   }
 
+  get abortMethod() {
+    return indentString(dedent`
+      abort() {
+        this.abortController?.abort();
+      }
+    `, 2);
+  }
+
   get fieldReturnsArray() {
     // yuck
     return getTypeName(this.field.type, { normalizeName: true }).endsWith('[]');
@@ -256,12 +265,16 @@ export class QueryGenerator {
       
         this.setError(null);
         this.setLoading(true);
+        this.abort();
         
+        const controller = new AbortController();
         const cachePolicy = ${this.isMutationType ? '"no-cache"' : "this.options.cachePolicy"};
+        
+        this.abortController = controller;
         
         const promise = (async () => {
           const result = this.__client.request<${this.dataTypeName}${this.hasVariables ? `, ${this.variablesTypeName}` : ''}>(
-            { document: this.document${this.hasVariables ? ', variables' : ''}, cachePolicy },
+            { document: this.document${this.hasVariables ? ', variables' : ''}, cachePolicy, signal: controller.signal },
           );
           
           let resultData: ${this.dataTypeName} | null = null;
@@ -282,10 +295,16 @@ export class QueryGenerator {
         try {
           result = await promise;
         } catch (err) {
-          console.error(err);
-          this.setError(err instanceof Error ? err : new Error(err as string));
+          if (err instanceof DOMException && err.name === 'AbortError') {
+            // Aborted from another request dispatched from the same query instance
+            // Don't treat it as an error
+          } else {
+            console.error(err);
+            this.setError(err instanceof Error ? err : new Error(err as string));
+          }
         }
         
+        this.abortController = null;
         this.setLoading(false);
         
         return result;
@@ -329,6 +348,7 @@ export class QueryGenerator {
       this.setDataMethod,
       this.setPromiseMethod,
       this.setErrorMethod,
+      this.abortMethod,
       this.dispatchMethod,
       this.footer,
       this.writeReactUtilities && this.hook

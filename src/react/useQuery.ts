@@ -6,6 +6,7 @@ interface IQuery {
   loading: boolean;
   error: Error | null;
   promise: Promise<unknown> | null;
+  abort(): void;
   dispatch: () => Promise<unknown>;
 }
 
@@ -23,7 +24,7 @@ export type UseQueryOpts<Data> = {
  * A hook that manages the state of a given query.
  *
  * **Tip:** When using a method on a class that returns the query, don't pass it in directly. Use an arrow function:
- * `useQuery(() => user.findPosts())` instead of `useQuery(user.findPosts)` Otherwise, the context of `this` will be
+ * `useQuery(() => user.findPosts())` instead of `useQuery(user.findPosts)`. Otherwise, the context of `this` will be
  * lost, resulting in a runtime error.
  *
  * @param generate A function that returns a `Query` instance.
@@ -42,6 +43,8 @@ export function useQuery<
   const dispatch = async (
     variablesOrQuery?: Query | Variables,
   ): Promise<Data> => {
+    query?.abort();
+
     let usableQuery = query;
     let variables: Variables | undefined;
 

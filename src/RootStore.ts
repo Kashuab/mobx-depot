@@ -96,6 +96,7 @@ export class RootStore<IDFieldName extends string, Models extends RootStoreModel
       create: action,
       update: action,
       remove: action,
+      replace: action,
       resolve: action,
     })
   }
