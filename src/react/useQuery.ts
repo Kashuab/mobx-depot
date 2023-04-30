@@ -54,7 +54,9 @@ export function useQuery<
       } else {
         variables = variablesOrQuery;
       }
-    } else if (generate) {
+    }
+
+    if (!usableQuery && generate) {
       usableQuery = generate();
     }
 
