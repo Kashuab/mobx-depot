@@ -306,6 +306,7 @@ export class QueryGenerator {
         
         this.abortController = null;
         this.setLoading(false);
+        this.setPromise(null);
         
         return result;
       }
