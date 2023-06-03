@@ -2,6 +2,7 @@ import {PostModel} from "./PostModel";
 import {assignInstanceProperties} from "../../lib/assignInstanceProperties";
 import {UserMetadataModel} from "./UserMetadataModel";
 import {Selectable} from "../../decorators/Selectable";
+import {makeAutoObservable} from "mobx";
 
 export class UserModel {
   source: 'local' | 'remote' = 'local';
@@ -15,8 +16,10 @@ export class UserModel {
   @Selectable() declare posts: PostModel[]
   @Selectable() declare metadata: UserMetadataModel;
 
-  constructor(init: any) {
-    this.assign(init)
+  constructor(init: any, makeObservable = true) {
+    this.assign(init);
+
+    if (makeObservable) makeAutoObservable(this);
   }
 
   assign(data: Partial<UserModel>) {

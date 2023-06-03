@@ -15,10 +15,10 @@ export class OtherIdUserModel {
   @Selectable() declare posts: PostModel[]
   @Selectable() declare metadata: UserMetadataModel;
 
-  constructor(init: any) {
+  constructor(init: any, makeObservable = true) {
     this.assign(init);
 
-    makeAutoObservable(this);
+    if (makeObservable) makeAutoObservable(this);
   }
 
   assign(data: Partial<OtherIdUserModel>) {

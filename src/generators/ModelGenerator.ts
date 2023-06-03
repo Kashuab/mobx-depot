@@ -121,10 +121,10 @@ export class ModelGenerator {
 
   get constructorFunction() {
     return indentString(dedent`
-      constructor(init: Partial<${this.propsTypeName}>) {
+      constructor(init: Partial<${this.propsTypeName}>, observable = true) {
         this.assign(init as any);
         
-        makeAutoObservable(this);
+        if (observable) makeAutoObservable(this);
       }
     `, 2);
   }

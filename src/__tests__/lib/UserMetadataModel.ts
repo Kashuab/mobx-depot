@@ -1,5 +1,6 @@
 import {assignInstanceProperties} from "../../lib/assignInstanceProperties";
 import {Selectable} from "../../decorators/Selectable";
+import {makeAutoObservable} from "mobx";
 
 export class UserMetadataModel {
   source: 'local' | 'remote' = 'local';
@@ -10,8 +11,10 @@ export class UserMetadataModel {
   @Selectable() declare lastOnlineAt: string | null;
   @Selectable() declare postCount: number | null;
 
-  constructor(init: any) {
+  constructor(init: any, makeObservable = true) {
     this.assign(init);
+
+    if (makeObservable) makeAutoObservable(this);
   }
 
   assign(data: Partial<UserMetadataModel>) {

@@ -13,10 +13,10 @@ export class PostModel {
   @Selectable() declare title: string;
   @Selectable() declare  user: UserModel;
 
-  constructor(init: any) {
+  constructor(init: any, makeObservable = true) {
     this.assign(init);
 
-    makeAutoObservable(this);
+    if (makeObservable) makeAutoObservable(this);
   }
 
   assign(data: Partial<PostModel>) {
