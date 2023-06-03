@@ -4,7 +4,6 @@ import {Selectable} from "../decorators/Selectable";
 import {PostModel} from "./lib/PostModel";
 import {UserMetadataModel} from "./lib/UserMetadataModel";
 import {assignInstanceProperties} from "../lib/assignInstanceProperties";
-import {autoAction} from "mobx/dist/api/action";
 
 describe('cast', () => {
   it('should cast a model', () => {
