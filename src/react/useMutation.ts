@@ -6,6 +6,7 @@ interface IMutation {
   loading: boolean;
   error: Error | null;
   promise: Promise<unknown> | null;
+  abort(): void;
   dispatch: () => Promise<unknown>;
 }
 
