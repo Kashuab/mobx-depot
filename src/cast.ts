@@ -16,21 +16,68 @@ type CastableClass<Model extends CastableModel> = {
 
 type CastableModel = {}
 
-const castedStore: [CastableModel, CastableClass<any>, Castable<any>][] = [];
+const castedStore: [CastableModel, CastableClass<any>[], Castable<any>][] = [];
 
-export function cast<Model extends CastableModel, Klass extends CastableClass<Model>>(model: Model, Class: Klass): InstanceType<Klass> {
-  const cached = castedStore.find(([m, Klass]) => m === model && Klass === Class);
-  if (cached) {
-    return cached[2] as InstanceType<Klass>;
-  }
+export function cast<
+  Model extends CastableModel,
+  Klasses extends CastableClass<Model>[]
+>(model: Model, ...classes: Klasses): UnionToIntersection<InstanceType<Klasses[number]>> {
+  const cached = castedStore.find(([m, klasses]) => {
+    if (m !== model) return false;
+    if (klasses.length !== classes.length) return false;
+    for (const klass of klasses) {
+      if (!classes.includes(klass)) return false;
+    }
 
-  const instance = new Class(model);
-  castedStore.push([model, Class, instance]);
-
-  // When the original model updates, update the instance
-  autorun(() => {
-    instance.receiveModel(model);
+    return true;
   });
 
-  return instance as InstanceType<Klass>;
+  if (cached) {
+    return cached[2] as any;
+  }
+
+  const instances = classes.map(klass => new klass(model));
+
+  // Create a proxy that behaves as if all the instances were combined
+  const proxyInstance = new Proxy({}, {
+    get(target, prop) {
+      for (const instance of instances) {
+        if (prop in instance) {
+          const value = instance[prop as keyof typeof instance];
+
+          if (typeof value === 'function') {
+            return value.bind(instance);
+          }
+
+          return value;
+        }
+      }
+    },
+    set(target, prop, value) {
+      for (const instance of instances) {
+        if (prop in instance) {
+          action(() => {
+            console.log('Setting', prop, 'to', value, 'on', instance);
+            instance[prop as keyof typeof instance] = value;
+          });
+        }
+      }
+      return true;
+    }
+  }) as any;
+
+  castedStore.push([model, classes, proxyInstance]);
+
+  // When the original model updates, update each instance
+  autorun(() => {
+    instances.forEach(instance => {
+      instance.receiveModel(model);
+    })
+  });
+
+  return proxyInstance;
 }
+
+type UnionToIntersection<T> =
+  (T extends any ? (x: T) => any : never) extends
+    (x: infer R) => any ? R : never

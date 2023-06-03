@@ -1,4 +1,4 @@
-import {action, makeAutoObservable} from "mobx";
+import {action, autorun, makeAutoObservable, makeObservable} from "mobx";
 import {cast, Castable} from "../cast";
 import {Selectable} from "../decorators/Selectable";
 import {PostModel} from "./lib/PostModel";
@@ -7,7 +7,7 @@ import {assignInstanceProperties} from "../lib/assignInstanceProperties";
 
 describe('cast', () => {
   it('should cast a model', () => {
-    const user = new UserBaseModel({
+    const user = new UserModel({
       id: 1,
       firstName: 'Test',
     });
@@ -24,7 +24,7 @@ describe('cast', () => {
   });
 
   it('can memoize casted instances', () => {
-    const user = new UserBaseModel({
+    const user = new UserModel({
       id: 1,
       firstName: 'Test',
     });
@@ -36,7 +36,7 @@ describe('cast', () => {
   });
 
   it('can update casted instances', () => {
-    const user = new UserBaseModel({
+    const user = new UserModel({
       id: 1,
       firstName: 'Test',
     });
@@ -52,9 +52,71 @@ describe('cast', () => {
     expect(user.firstName).toBe('Test 3');
     expect(editableUser.firstName).toBe('Test 3');
   });
+
+  it('can cast a model with multiple classes', () => {
+    const user = new UserModel({
+      id: 1,
+      firstName: 'Test',
+      lastName: 'Bing bong'
+    });
+
+    const editableUserB = cast(user, EditableUser, UseCaseB);
+
+    expect(editableUserB.firstName).toBe('Test');
+    expect(editableUserB.lastName).toBe('Bing bong');
+    expect(editableUserB.something).toBe('test123');
+    expect(editableUserB.somethingElse).toBe('test');
+
+    editableUserB.setFirstName('Test 2');
+    expect(editableUserB.firstName).toBe('Test 2');
+    expect(user.firstName).toBe('Test');
+
+    editableUserB.setSomething('Set something');
+    expect(editableUserB.something).toBe('Set something');
+
+    user.assign({ firstName: 'Test 3', lastName: 'Test 4' });
+
+    expect(editableUserB.firstName).toBe('Test 3');
+    expect(editableUserB.lastName).toBe('Test 4');
+
+    const editableUserC = cast(user, EditableUser, UseCaseB);
+    const editableUserD = cast(user, UseCaseB, EditableUser);
+    const editableUserE = cast(user, EditableUser);
+
+    expect(editableUserB).toBe(editableUserC);
+    expect(editableUserB).toBe(editableUserD);
+    expect(editableUserB).not.toBe(editableUserE);
+  });
+
+  it('preserves observability', () => {
+    const user = new UserModel({
+      id: 1,
+      firstName: 'Test',
+      lastName: 'Bing bong'
+    });
+
+    const editableUserB = cast(user, EditableUser, UseCaseB);
+
+    const spyA = jest.fn();
+    const spyB = jest.fn();
+
+    autorun(() => {
+      spyA(editableUserB.firstName);
+    });
+
+    autorun(() => {
+      spyB(editableUserB.something);
+    });
+
+    editableUserB.setFirstName('Test 2');
+    editableUserB.setSomething('Set something');
+
+    expect(spyA).toHaveBeenCalledTimes(2);
+    expect(spyB).toHaveBeenCalledTimes(2);
+  })
 });
 
-export class UserBaseModel {
+export class UserModel {
   source: 'local' | 'remote' = 'local';
   __setSource(source: 'local' | 'remote') {
     this.source = source;
@@ -72,7 +134,7 @@ export class UserBaseModel {
     makeAutoObservable(this);
   }
 
-  assign(data: Partial<UserBaseModel>) {
+  assign(data: Partial<UserModel>) {
     assignInstanceProperties(this, data);
   }
 
@@ -93,18 +155,41 @@ export class UserBaseModel {
   }
 }
 
-class EditableUser implements Castable<UserBaseModel> {
+class UseCaseB implements Castable<UserModel> {
+  firstName: string;
+  lastName: string;
+  something: string;
+
+  constructor(user: UserModel) {
+    this.firstName = user.firstName;
+    this.lastName = user.lastName;
+    this.something = 'test123';
+
+    makeAutoObservable(this);
+  }
+
+  receiveModel(user: UserModel): void {
+    this.firstName = user.firstName;
+    this.lastName = user.lastName;
+  }
+
+  setSomething(something: string) {
+    this.something = something;
+  }
+}
+
+class EditableUser implements Castable<UserModel> {
   firstName: string;
   somethingElse: string;
 
-  constructor(user: UserBaseModel) {
+  constructor(user: UserModel) {
     this.firstName = user.firstName;
     this.somethingElse = 'test';
 
     makeAutoObservable(this);
   }
 
-  receiveModel(user: UserBaseModel): void {
+  receiveModel(user: UserModel): void {
     this.firstName = user.firstName;
   }
 
