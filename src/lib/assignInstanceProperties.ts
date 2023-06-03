@@ -1,12 +1,15 @@
 import {getAtom} from "mobx";
 
+const blacklistedKeys = ['__typename'];
+
 export function assignInstanceProperties<T extends object>(target: T, source: T, assigned: T[] = []) {
   // Prevent infinite recursion in case of circular references
   if (assigned.includes(target)) return;
 
   assigned.push(target);
 
-  const keys = Object.getOwnPropertyNames(source) as (keyof T)[];
+  const keys = (Object.getOwnPropertyNames(source) as (keyof T)[])
+    .filter(key => !blacklistedKeys.includes(key as string));
 
   for (const key of keys) {
     let sourceValue;

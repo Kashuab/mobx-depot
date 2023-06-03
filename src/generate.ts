@@ -198,21 +198,15 @@ export async function generate(opts: GenerateOpts) {
     );
   }
   
-  function writeModelsToDisk(models: ModelGenerator[], force = false) {
+  function writeModelsToDisk(models: ModelGenerator[]) {
     if (!fs.existsSync(withOutDir(`${depotDirName}/base/selector`))) {
       fs.mkdirSync(withOutDir(`${depotDirName}/base/selectors`), { recursive: true });
     }
   
     models.forEach(model => {
-      fs.writeFileSync(withOutDir(`${depotDirName}/base/${model.baseModelFileName}`), withDontEditWarning(model.baseModelCode));
+      fs.writeFileSync(withOutDir(`${depotDirName}/base/${model.modelFileName}`), withDontEditWarning(model.code));
       fs.writeFileSync(withOutDir(`${depotDirName}/base/selectors/${model.selectorGenerator.fileName}`), withDontEditWarning(model.selectorGenerator.code));
 
-      const userEditablePath = withOutDir(`${model.userEditableModelFileName}`);
-      if (!force && fs.existsSync(userEditablePath)) {
-        return;
-      }
-
-      fs.writeFileSync(userEditablePath, model.userEditableModelCode)
     });
   }
   
@@ -264,7 +258,7 @@ export async function generate(opts: GenerateOpts) {
     const exports: string[] = [];
 
     models.forEach(model => {
-      exports.push(`export * from './base/${model.baseModelClassName}';`)
+      exports.push(`export * from './base/${model.modelClassName}';`)
     })
 
     queries.forEach(query => {

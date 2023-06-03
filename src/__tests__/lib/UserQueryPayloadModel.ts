@@ -1,10 +1,23 @@
-import {UserQueryPayloadBaseModel} from "./UserQueryPayloadBaseModel";
-import {makeModelObservable} from "../../makeModelObservable";
+import {assignInstanceProperties} from "../../lib/assignInstanceProperties";
+import {Selectable} from "../../decorators/Selectable";
+import {UserModel} from "./UserModel";
+import {makeAutoObservable} from "mobx";
 
-export class UserQueryPayloadModel extends UserQueryPayloadBaseModel {
+export class UserQueryPayloadModel {
+  source: 'local' | 'remote' = 'local';
+  __setSource(source: 'local' | 'remote') {
+    this.source = source;
+  }
+
+  @Selectable() declare user: UserModel;
+
   constructor(init: any) {
-    super(init);
+    this.assign(init);
 
-    makeModelObservable(this);
+    makeAutoObservable(this);
+  }
+
+  assign(data: Partial<UserQueryPayloadModel>) {
+    assignInstanceProperties(this, data);
   }
 }

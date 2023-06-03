@@ -30,12 +30,8 @@ export class ModelGenerator {
     return this.modelType.fields.some(field => field.name === this.idFieldName);
   }
 
-  get baseModelFileName() {
-    return `${this.baseModelClassName}.ts`;
-  }
-
-  get userEditableModelFileName() {
-    return `${this.userEditableModelClassName}.ts`;
+  get modelFileName() {
+    return `${this.modelClassName}.ts`;
   }
 
   get requiredModels() {
@@ -89,7 +85,7 @@ export class ModelGenerator {
       .map(model => {
         const className = this.className(getTypeName(model.type, { stripArrayType: true }));
 
-        return `import { ${className} } from "../../${className}"`
+        return `import { ${className} } from "./${className}"`
       })
       .reduce((imports, current) => {
         if (imports.includes(current)) return imports;
@@ -104,32 +100,31 @@ export class ModelGenerator {
   get imports() {
     return dedent`
       import { assignInstanceProperties, Selectable, WritableInstanceVariables } from 'mobx-depot';
+      import { makeAutoObservable } from 'mobx';
       ${this.scalarImports}
       ${this.enumImports}
       ${this.modelImports}
     `;
   }
 
-  className(name = this.modelType.name, base = false) {
-    return `${name}${base ? 'BaseModel' : 'Model'}`;
+  className(name = this.modelType.name) {
+    return `${name}Model`;
   }
 
-  get baseModelClassName() {
-    return this.className(this.modelType.name, true);
-  }
-
-  get userEditableModelClassName() {
-    return this.className(this.modelType.name, false);
+  get modelClassName() {
+    return this.className(this.modelType.name);
   }
 
   get header() {
-    return `export class ${this.baseModelClassName} {`;
+    return `export class ${this.modelClassName} {`;
   }
 
   get constructorFunction() {
     return indentString(dedent`
       constructor(init: Partial<${this.propsTypeName}>) {
         this.assign(init as any);
+        
+        makeAutoObservable(this);
       }
     `, 2);
   }
@@ -146,7 +141,7 @@ export class ModelGenerator {
         if (referencesModel(field.type)) {
           const isArray = type.endsWith('[]');
           const typeNameWithoutArray = getTypeName(field.type, { stripArrayType: true });
-          type = this.className(typeNameWithoutArray, false);
+          type = this.className(typeNameWithoutArray);
 
           if (isArray) type += '[]';
         }
@@ -161,22 +156,19 @@ export class ModelGenerator {
       .filter(Boolean)
 
     return [
-      // TODO: Do we need the root store available on the models?
-      //       If this gets re-added, the model selector generator needs to be updated to omit the key from the builder
-      // indentString(`store = getRootStore();`, 2),
       indentString("private __source: 'remote' | 'local' = 'local';", 2),
       ...fieldProperties,
     ].join('\n');
   }
 
   get propsTypeName() {
-    return `${this.baseModelClassName}Props`;
+    return `${this.modelClassName}Props`;
   }
 
   get propsType() {
     const fieldNameUnion = this.fieldNames.map(name => `'${name}'`).join(' | ');
     return dedent`
-      export type ${this.propsTypeName} = Pick<${this.baseModelClassName}, ${fieldNameUnion}>;
+      export type ${this.propsTypeName} = Pick<${this.modelClassName}, ${fieldNameUnion}>;
     `
   }
 
@@ -217,12 +209,6 @@ export class ModelGenerator {
 
   get footer() {
     return `}`;
-  }
-
-  get baseModelWarning() {
-    return dedent`
-      // To add your own functionality, go to ${this.userEditableModelFileName}
-    `;
   }
 
   get assignMethodName() {
@@ -281,9 +267,8 @@ export class ModelGenerator {
     `, 2);
   }
 
-  get baseModelCode() {
+  get code() {
     const segments = [
-      this.baseModelWarning,
       this.imports,
       this.propsType,
       this.header,
@@ -299,21 +284,6 @@ export class ModelGenerator {
     ];
 
     return segments.join('\n');
-  }
-
-  get userEditableModelCode() {
-    return dedent`
-      import { makeModelObservable } from 'mobx-depot';
-      import { ${this.baseModelClassName} } from './${this.opts.depotDirName}';
-      
-      export class ${this.userEditableModelClassName} extends ${this.baseModelClassName} {
-        constructor(init: Partial<${this.userEditableModelClassName}> = {}) {
-          super(init);
-          
-          makeModelObservable(this);
-        }
-      }
-    `
   }
 }
 

@@ -2,6 +2,7 @@ import {PostModel} from "./PostModel";
 import {assignInstanceProperties} from "../../lib/assignInstanceProperties";
 import {Selectable} from "../../decorators/Selectable";
 import {UserMetadataModel} from "./UserMetadataModel";
+import {makeAutoObservable} from "mobx";
 
 export class OtherIdUserModel {
   source: 'local' | 'remote' = 'local';
@@ -16,6 +17,8 @@ export class OtherIdUserModel {
 
   constructor(init: any) {
     this.assign(init);
+
+    makeAutoObservable(this);
   }
 
   assign(data: Partial<OtherIdUserModel>) {

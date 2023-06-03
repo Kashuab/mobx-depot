@@ -16,7 +16,10 @@ describe('DepotGQLClient', () => {
         __typename: 'User',
         id: '1',
         firstName: 'Billy',
-        lastName: 'Bob'
+        lastName: 'Bob',
+        metadata: {
+          postCount: 3
+        }
       }
     } as const;
 
@@ -25,7 +28,10 @@ describe('DepotGQLClient', () => {
         __typename: 'User',
         id: '1',
         firstName: 'Joe',
-        lastName: 'Mama'
+        lastName: 'Mama',
+        metadata: {
+          postCount: 5
+        }
       }
     } as const;
 
@@ -45,6 +51,9 @@ describe('DepotGQLClient', () => {
           id
           firstName
           lastName
+          metadata {
+            postCount
+          }
         }
       }
     `;
@@ -58,23 +67,10 @@ describe('DepotGQLClient', () => {
       expect(result.user).toBeInstanceOf(UserModel);
     }
 
-    expect(client.cache).toMatchObject(
-      [
-        [
-          JSON.stringify({ query: queryDocument }),
-          {
-            user: {
-              id: '1',
-              firstName: 'Billy',
-              lastName: 'Bob',
-              metadata: undefined,
-              posts: undefined,
-              source: "remote",
-            }
-          }
-        ]
-      ]
-    );
+    const [cacheKey, cachedUserQuery] = client.cache[0];
+
+    expect(cacheKey).toBe(client.getCacheKey(queryDocument));
+    expect(cachedUserQuery.user).toBe(rootStore.find(UserModel, '1'));
 
     server.use(
       graphql.query('UserQuery', (req, res, ctx) => {

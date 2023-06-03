@@ -22,13 +22,13 @@ export class RootStoreGenerator {
 
   get modelImports() {
     return this.models.map(model => {
-      return `import { ${model.userEditableModelClassName} } from '../${model.userEditableModelClassName}';`;
+      return `import { ${model.modelClassName} } from './base/${model.modelClassName}';`;
     }).join('\n');
   }
 
   get rootStoreModels() {
     return this.models.map(model => {
-      return `${model.modelType.name}: ${model.userEditableModelClassName},`;
+      return `${model.modelType.name}: ${model.modelClassName},`;
     }).join('\n');
   }
 

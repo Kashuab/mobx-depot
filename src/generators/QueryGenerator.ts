@@ -58,7 +58,7 @@ export class QueryGenerator {
       "import { makeAutoObservable } from 'mobx';",
       `import { buildSelection, CachePolicy, use${this.isMutationType ? 'Mutation' : 'Query'}, Use${this.isMutationType ? 'Mutation' : 'Query'}Opts } from 'mobx-depot';`,
       "import { getGraphQLClient } from '../rootStore';",
-      `import { ${this.payloadModelName} } from '../../${this.payloadModelName}';`,
+      `import { ${this.payloadModelName} } from '../base/${this.payloadModelName}';`,
       this.payloadSelectorImport,
       ...this.variableImports,
     ].join('\n');
