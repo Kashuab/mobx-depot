@@ -10,6 +10,9 @@ import {
 import {indentString} from "../lib/indentString";
 import dedent from "dedent";
 import {isScalarType, scalarIsPrimitive} from "../generate";
+import {referencesObjectType} from "./generateObjectTypes";
+import {referencesScalar} from "./generateScalars";
+import {referencesInputObjectType} from "./generateInputObjects";
 
 export class QueryGenerator {
   field: IntrospectionField;
@@ -75,7 +78,21 @@ export class QueryGenerator {
   get variableDefinitions() {
     return this.field.args.map(arg => {
       const optional = typeIsNullable(arg.type);
-      return `${arg.name}${optional ? '?' : ''}: ${getTypeName(arg.type)}`;
+      let typeName = getTypeName(arg.type);
+
+      if (referencesObjectType(arg.type)) {
+        typeName = `ObjectTypes.${typeName}`;
+      }
+
+      if (referencesScalar(arg.type) && !scalarIsPrimitive(arg.type)) {
+        typeName = `Scalars.${typeName}`;
+      }
+
+      if (referencesInputObjectType(arg.type)) {
+        typeName = `InputObjects.${typeName}`;
+      }
+
+      return `${arg.name}${optional ? '?' : ''}: ${typeName}`;
     });
   }
 
@@ -112,7 +129,7 @@ export class QueryGenerator {
   get constructorFunction() {
     return indentString(
       [
-        `constructor(${this.hasVariables ? `variables: ${this.variablesTypeName} | null, ` : ''}select: ${this.selectionBuilderType}, options: Options = {}) {`,
+        `constructor(${this.hasVariables ? `variables: ${this.variablesTypeName} | null, ` : ''}select: ${this.selectionBuilderType}, options: ${this.optionsTypeName} = {}) {`,
         indentString("this.options = options;", 2),
         this.hasVariables && indentString("this.variables = variables;", 2),
         indentString(`this.selection = buildSelection(${this.payloadSelectorName}(select));`, 2),
@@ -132,7 +149,7 @@ export class QueryGenerator {
         'loading = false;',
         'error: Error | null = null;',
         `data: ${this.dataTypeName} | null = null;`,
-        'options: Options = {};',
+        `options: ${this.optionsTypeName} = {};`,
         `promise: Promise<${this.dataTypeName} | null> | null = null;`,
         'abortController: AbortController | null = null;'
       ].filter(Boolean).join('\n'),
@@ -228,7 +245,7 @@ export class QueryGenerator {
   }
 
   get payloadModelName() {
-    return `${this.fieldTypeName}Model`;
+    return `${this.fieldTypeName}`;
   }
 
   get dataTypeName() {
@@ -249,11 +266,15 @@ export class QueryGenerator {
   }
 
   get dataType() {
-    return `type ${this.dataTypeName} = { ${this.field.name}: ${this.payloadModelName}${this.fieldReturnsArray ? '[]' : ''} };`;
+    return `type ${this.dataTypeName} = { ${this.field.name}: ObjectTypes.${this.payloadModelName}${this.fieldReturnsArray ? '[]' : ''} };`;
+  }
+
+  get optionsTypeName() {
+    return `${this.className}Options`;
   }
 
   get optionsType() {
-    return `type Options = { cachePolicy?: CachePolicy };`;
+    return `type ${this.optionsTypeName} = { cachePolicy?: CachePolicy };`;
   }
 
   get dispatchMethod() {
@@ -319,11 +340,11 @@ export class QueryGenerator {
 
   get hook() {
     const type = this.isMutationType ? 'Mutation' : 'Query';
-    const hookTypeName = `Use${this.className}${type}Opts`;
+    const hookTypeName = `Use${this.className}Opts`;
 
     return dedent`
 
-      type ${hookTypeName} = Options & Use${type}Opts<${this.dataTypeName}>;
+      type ${hookTypeName} = ${this.optionsTypeName} & Use${type}Opts<${this.dataTypeName}>;
 
       export function use${this.className}(${this.hasVariables ? `variables: ${this.variablesTypeName} | null, ` : ''}select: ${this.selectionBuilderType}, opts: ${hookTypeName} = {}) {
         return use${type}(
@@ -336,7 +357,7 @@ export class QueryGenerator {
 
   get code() {
     const segments = [
-      this.imports,
+      // this.imports,
       this.optionsType,
       this.variablesType,
       this.dataType,

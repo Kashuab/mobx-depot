@@ -2,15 +2,12 @@ import {DepotGQLClient} from "../DepotGQLClient";
 import {mockGraphQLServer} from "./lib/test_utils/msw";
 import { graphql } from 'msw';
 import {RootStore} from "../RootStore";
-import {UserModel} from "./lib/UserModel";
 import { omit, cloneDeep } from 'lodash';
 
 describe('DepotGQLClient', () => {
   const server = mockGraphQLServer();
 
   it('can cache a response from a server', async () => {
-    const rootStore = new RootStore(() => ({ User: UserModel }), { idFieldName: 'id' });
-
     const userData = {
       user: {
         __typename: 'User',
@@ -37,7 +34,7 @@ describe('DepotGQLClient', () => {
       })
     )
 
-    const client = new DepotGQLClient('http://localhost:4000/graphql', {}, rootStore);
+    const client = new DepotGQLClient('http://localhost:4000/graphql', {});
 
     const queryDocument = `
       query UserQuery {
@@ -54,8 +51,7 @@ describe('DepotGQLClient', () => {
     });
 
     for await (const result of iterator) {
-      expect(result.user).toMatchObject(omit(userData.user, '__typename'));
-      expect(result.user).toBeInstanceOf(UserModel);
+      expect(result.user).toEqual(userData.user);
     }
 
     expect(client.cache).toMatchObject(
@@ -67,9 +63,6 @@ describe('DepotGQLClient', () => {
               id: '1',
               firstName: 'Billy',
               lastName: 'Bob',
-              metadata: undefined,
-              posts: undefined,
-              source: "remote",
             }
           }
         ]
@@ -103,8 +96,6 @@ describe('DepotGQLClient', () => {
   });
 
   it('can update the cache with a mutation', async () => {
-    const rootStore = new RootStore(() => ({ User: UserModel }), { idFieldName: 'id' });
-
     const userData = {
       user: {
         __typename: 'User',
@@ -134,7 +125,7 @@ describe('DepotGQLClient', () => {
       })
     );
 
-    const client = new DepotGQLClient('http://localhost:4000/graphql', {}, rootStore);
+    const client = new DepotGQLClient('http://localhost:4000/graphql', {});
 
     const queryDocument = `
       query UserQuery {
@@ -155,7 +146,6 @@ describe('DepotGQLClient', () => {
     }
 
     const instance = client.cache[0][1].user;
-    expect(instance).toBeInstanceOf(UserModel);
 
     const mutationDocument = `
       mutation UpdateUserMutation($input: UpdateUserInput!) {
@@ -182,7 +172,6 @@ describe('DepotGQLClient', () => {
     }
 
     const updatedInstance = client.cache[0][1].user;
-    expect(updatedInstance).toBeInstanceOf(UserModel);
     expect(updatedInstance).toMatchObject({
       firstName: 'Joe',
       lastName: 'Mama'
