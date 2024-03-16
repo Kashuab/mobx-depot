@@ -1,6 +1,6 @@
 import { GraphQLClient, Variables, RequestOptions } from "graphql-request";
 import { RequestConfig } from "graphql-request/src/types";
-import {DeepResolved, KeyOf, RootStore, RootStoreModels} from "./RootStore";
+import {DeepResolved, KeyOf, RootStore, RootStoreObjectTypes} from "./RootStore";
 
 export type CachePolicy = "no-cache" | "cache-first" | "cache-only" | "network-only" | "cache-and-network";
 
@@ -17,8 +17,8 @@ export type DepotGQLClientInit = {
   defaultCachePolicy?: CachePolicy;
 }
 
-type Callbacks<IDFieldName extends string, Models extends RootStoreModels<IDFieldName>, ModelName extends KeyOf<Models>> = {
-  afterResolve: Callback<IDFieldName, Models, ModelName>[];
+type Callbacks<ObjectTypes extends RootStoreObjectTypes, Typename extends KeyOf<ObjectTypes>> = {
+  afterResolve: Callback<ObjectTypes, Typename>[];
 }
 
 interface Query {
@@ -26,38 +26,37 @@ interface Query {
   variables?: Record<string, unknown>;
 }
 
-type CallbackPayload<IDFieldName extends string, Models extends RootStoreModels<IDFieldName>, ModelName extends KeyOf<Models>> = {
-  resolved: DeepResolved<IDFieldName, Models, ModelName, object>;
+type CallbackPayload<ObjectTypes extends RootStoreObjectTypes, Typename extends KeyOf<ObjectTypes>> = {
+  resolved: DeepResolved<ObjectTypes, Typename, object>;
   query: Query;
 }
 
-type Callback<IDFieldName extends string, Models extends RootStoreModels<IDFieldName>, ModelName extends KeyOf<Models>>
-  = (payload: CallbackPayload<IDFieldName, Models, ModelName>) => void;
+type Callback<ObjectTypes extends RootStoreObjectTypes, Typename extends KeyOf<ObjectTypes>>
+  = (payload: CallbackPayload<ObjectTypes, Typename>) => void;
 
-type CallbackName = keyof Callbacks<any, any, any>;
+type CallbackName = keyof Callbacks<any, any>;
 
 /**
  * A wrapper around GraphQLClient from `graphql-request` that adds a cache layer.
  */
-export class DepotGQLClient<IDFieldName extends string, Models extends RootStoreModels<IDFieldName>, ModelName extends KeyOf<Models>> {
+export class DepotGQLClient<ObjectTypes extends RootStoreObjectTypes, Typename extends KeyOf<ObjectTypes> = KeyOf<ObjectTypes>> {
   cache: [string, any][] = [];
   gqlClient: GraphQLClient;
   defaultCachePolicy: CachePolicy;
-  rootStore: RootStore<IDFieldName, Models, ModelName>;
-  callbacks: Callbacks<IDFieldName, Models, ModelName> = {
+  rootStore = new RootStore<ObjectTypes>();
+  callbacks: Callbacks<ObjectTypes, Typename> = {
     afterResolve: []
   };
 
-  constructor(url: string, options: DepotGQLClientInit & RequestConfig = {}, rootStore: RootStore<IDFieldName, Models, ModelName>) {
+  constructor(url: string, options: DepotGQLClientInit & RequestConfig = {}) {
     this.defaultCachePolicy = options.defaultCachePolicy || "cache-and-network";
-    this.rootStore = rootStore;
 
     // Make sure not to pass unused options to GraphQLClient
     delete options.defaultCachePolicy;
     this.gqlClient = new GraphQLClient(url, options);
   }
 
-  on(callbackName: CallbackName, callback: Callback<IDFieldName, Models, ModelName>) {
+  on(callbackName: CallbackName, callback: Callback<ObjectTypes, Typename>) {
     this.callbacks[callbackName].push(callback);
 
     return () => {
@@ -65,13 +64,13 @@ export class DepotGQLClient<IDFieldName extends string, Models extends RootStore
     }
   }
 
-  emit(callbackName: CallbackName, resolved: DeepResolved<IDFieldName, Models, ModelName, object>, query: Query) {
+  emit(callbackName: CallbackName, resolved: DeepResolved<ObjectTypes, Typename, object>, query: Query) {
     this.callbacks[callbackName].forEach(callback => callback({ resolved, query }));
   }
 
   async *request<T extends {} = {}, V extends Variables = Variables>(
     options: RequestOptions<V, T> & { cachePolicy?: CachePolicy },
-  ): AsyncGenerator<DeepResolved<IDFieldName, Models, ModelName, T>> {
+  ) {
     const { document, variables, cachePolicy = this.defaultCachePolicy } = options;
 
     const query = typeof document === "string" ? document : document.loc?.source.body;
@@ -80,7 +79,7 @@ export class DepotGQLClient<IDFieldName extends string, Models extends RootStore
     const cacheKey = this.getCacheKey(query, variables);
 
     if (this.policyAllowsHit(cachePolicy)) {
-      const cacheHit = this.getCachedResponse<DeepResolved<IDFieldName, Models, ModelName, T>>(cacheKey);
+      const cacheHit = this.getCachedResponse<DeepResolved<ObjectTypes, Typename, T>>(cacheKey);
 
       if (cacheHit) {
         yield cacheHit;
@@ -97,7 +96,7 @@ export class DepotGQLClient<IDFieldName extends string, Models extends RootStore
 
     if (this.policyAllowsNetwork(cachePolicy)) {
       const result = await this.gqlClient.request<T, V>(options);
-      const resolved = this.rootStore.resolve(result, 'remote');
+      const resolved = this.rootStore.resolve(result);
 
       if (this.policyAllowsStore(cachePolicy)) {
         this.cacheResponse(cacheKey, resolved);

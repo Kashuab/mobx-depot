@@ -3,26 +3,17 @@ import {referencesModel} from "../makeIntrospectionQuery";
 import dedent from "dedent";
 import {indentString} from "../lib/indentString";
 import { pascalCase } from "change-case";
-
-type ModelSelectorGeneratorOpts = {
-  idFieldName: string;
-}
+import {IntrospectionObjectType} from "graphql/utilities/getIntrospectionQuery";
 
 export class ModelSelectorGenerator {
-  model: ModelGenerator;
-  opts: ModelSelectorGeneratorOpts
+  objectType: IntrospectionObjectType;
 
-  constructor(model: ModelGenerator, opts: ModelSelectorGeneratorOpts) {
-    this.opts = opts;
-    this.model = model;
-  }
-
-  get idFieldName() {
-    return this.opts.idFieldName;
+  constructor(objectType: IntrospectionObjectType) {
+    this.objectType = objectType;
   }
 
   get modelNestedObjectFields() {
-    return this.model.modelType.fields
+    return this.objectType.fields
       .filter(field => referencesModel(field.type))
   }
 
@@ -33,7 +24,7 @@ export class ModelSelectorGenerator {
 
         // Types can have fields that reference their own type, so in that case
         // we don't want to import those functions since they'll already be declared
-        if (modelName === this.model.modelType.name) return;
+        if (modelName === this.objectType.name) return;
 
         return `import { selectFrom${modelName}, ${modelName}SelectionBuilder } from "./${modelName}Selector"`
       })
@@ -64,8 +55,6 @@ export class ModelSelectorGenerator {
         if (!args?.length) return imports;
 
         args.forEach(arg => {
-          let importStatement;
-
           if (getTypeKind(arg.type) === 'ENUM') {
             const typeName = getTypeName(arg.type, { normalizeName: true, stripArrayType: true });
             const importStatement = `import { ${typeName} } from '../../enums/${typeName}'`;
@@ -92,19 +81,23 @@ ${indentString(args.map(arg => `${arg.name}${typeIsNullable(arg.type) ? '?' : ''
     }).filter(Boolean).join('\n');
   }
 
+  get primitiveKeysVariableName() {
+    return `${this.objectType.name}PrimitiveKeys`;
+  }
+
 
   get proxyType() {
-    const typeName = `${this.model.modelType.name}SelectorProxy`;
+    const typeName = `${this.objectType.name}SelectorProxy`;
     const nestedProxyGetters = this.modelNestedObjectFields.map(({ name, type, args }) => {
       const hasArgs = args?.length > 0;
-      const definition = `(${hasArgs ? `args: ${pascalCase(name)}Args, ` : ''}builder: ${getTypeName(type, { normalizeName: true, stripArrayType: true })}SelectionBuilder) => ${this.model.modelType.name}SelectorProxy`
+      const definition = `(${hasArgs ? `args: ${pascalCase(name)}Args, ` : ''}builder: ${getTypeName(type, { normalizeName: true, stripArrayType: true })}SelectionBuilder) => ${this.objectType.name}SelectorProxy`
       return `${name}: ${definition};`
     })
 
     // This makes me want to gouge my eyes out! :^)
     let type =
 `export type ${typeName} = {${this.hasPrimitives ? `
-  [key in typeof primitiveKeys[number]]: ${typeName}; 
+  [key in typeof ${this.primitiveKeysVariableName}[number]]: ${typeName}; 
 } & {
   /**
     * Adds the following fields to the selection:
@@ -117,35 +110,39 @@ ${indentString(this.primitiveFields.map(({ name, type }) => `* - \`${name}\`: \`
   }
 
   get primitiveFields() {
-    return this.model.modelType.fields
-      .filter(field => field.name !== this.idFieldName && !referencesModel(field.type) && field.name !== 'clientMutationId')
+    return this.objectType.fields
+      .filter(field => field.name !== 'id' && !referencesModel(field.type) && field.name !== 'clientMutationId')
   }
 
   get hasPrimitives() {
     return this.primitiveFields.length > 0;
   }
 
+  get hasIdField() {
+    return this.objectType.fields.some(field => field.name === 'id');
+  }
+
   get proxyGenerator() {
     // TODO: DRY
-    const typeName = `${this.model.modelType.name}SelectorProxy`;
-    const selectionBuilderTypeName = `${this.model.modelType.name}SelectionBuilder`;
+    const typeName = `${this.objectType.name}SelectorProxy`;
+    const selectionBuilderTypeName = `${this.objectType.name}SelectionBuilder`;
 
     return dedent`
-      ${this.hasPrimitives ? `const primitiveKeys = [${this.primitiveFields.map(f => `"${f.name}"`).join(', ')}] as const` : ''};
+      ${this.hasPrimitives ? `const ${this.primitiveKeysVariableName} = [${this.primitiveFields.map(f => `"${f.name}"`).join(', ')}] as const` : ''};
       
       export type ${selectionBuilderTypeName} = (proxy: ${typeName}) => ${typeName};
       
-      export function selectFrom${this.model.modelType.name}(build: ${selectionBuilderTypeName}) {
+      export function selectFrom${this.objectType.name}(build: ${selectionBuilderTypeName}) {
         const selections: Selection[] = [
           { fieldName: '__typename' },
-          ${this.model.hasIdField ? `{ fieldName: '${this.idFieldName}' },` : ''}
+          ${this.hasIdField ? `{ fieldName: 'id' },` : ''}
         ];
         
         const proxy: ${typeName} = new Proxy({}, {
           get(target, prop) {
             switch (prop) {${this.hasNestedObjects ? `\n${indentString(this.proxyGeneratorNestedObjectSwitchCases, 6)}` : ''}
               ${this.hasPrimitives ? `case 'primitives':
-                selections.push(...primitiveKeys.map(key => ({ fieldName: key })));   
+                selections.push(...${this.primitiveKeysVariableName}.map(key => ({ fieldName: key })));   
                 break;` : ''}
               default:
                 selections.push({ fieldName: prop as string });
@@ -178,13 +175,8 @@ ${indentString(this.primitiveFields.map(({ name, type }) => `* - \`${name}\`: \`
     }).join('');
   }
 
-  get fileName() {
-    return `${this.model.modelType.name}Selector.ts`;
-  }
-
   get code() {
     const segments = [
-      this.imports,
       this.nestedObjectArgsTypes,
       this.proxyGenerator,
       this.proxyType,

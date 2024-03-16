@@ -27,3 +27,4 @@ dist
 models
 introspection.json
 example
+example.ts

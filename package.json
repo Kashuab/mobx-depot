@@ -30,7 +30,7 @@
     "build": "yarn build-cli; yarn build-client;",
     "build-client": "microbundle --no-compress --entry src/index.ts --format cjs,modern --target web --external mobx,graphql,react",
     "build-cli": "microbundle --entry src/cli.ts --output dist/cli.js --format cjs --target node",
-    "bing": "ts-node --transpileOnly src/cli.ts -- generate http://localhost:3000/graphql --outDir example/models",
+    "bing": "ts-node --transpileOnly src/cli.ts -- generate introspection.json --out example.ts",
     "test": "jest"
   },
   "peerDependencies": {
