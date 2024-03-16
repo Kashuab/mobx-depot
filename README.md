@@ -1,3 +1,12 @@
+# This project is no longer maintained.
+
+I tried using this, and while it did work out the result was less stellar than expected.
+`mobx-depot` could definitely be improved in order to be feasible. [I have a few ideas on this](https://www.notion.so/MobX-Depot-Proposal-v0-1-0-5c40dd3192b24ef7885e88f8a525794f),
+however my team is not considering GraphQL for our own application stack for the future. If there is any interest in the project,
+I would love to work on it and perhaps implement those changes.
+
+---
+
 # `mobx-depot`
 
 [View documentation](https://mobx-depot.dev)
@@ -22,8 +31,7 @@ Scaffold MobX-powered models, queries and mutations with your GraphQL schema.
 - ...
 
 Depending on the structure of your schema, you could also consider local state management as a target. You could
-theoretically generate models using a schema without needing to interact with an external API at all. In this case any
-local state management library should be shaking in their boots!
+theoretically generate models using a schema without needing to interact with an external API at all. 
 
 - Redux
 - Zustand
